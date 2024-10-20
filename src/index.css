@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@media print {
+
+    /* Hide sidebar, topbar, and all screen-only controls when printing a quotation */
+    aside,
+    nav,
+    header {
+        display: none !important;
+    }
+
+    main {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .print\:hidden {
+        display: none !important;
+    }
+
+    body {
+        background: white !important;
+    }
+}
