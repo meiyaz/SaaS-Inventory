@@ -1,0 +1,197 @@
+import React, { useState } from 'react';
+import { Settings2, Building2, Save, Key, Bell, Palette } from 'lucide-react';
+
+const TABS = [
+    { id: 'company', label: 'Company Profile', icon: Building2 },
+    { id: 'preferences', label: 'Preferences', icon: Palette },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'security', label: 'Security', icon: Key },
+];
+
+const inputCls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white";
+const labelCls = "block text-xs font-semibold text-slate-600 mb-1";
+
+const field = (label, children) => (
+    <div>
+        <label className={labelCls}>{label}</label>
+        {children}
+    </div>
+);
+
+const Settings = () => {
+    const [tab, setTab] = useState('company');
+    const [saved, setSaved] = useState(false);
+
+    // Company profile stored in localStorage for demo
+    const [company, setCompany] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('company_profile') || '{}'); } catch { return {}; }
+    });
+
+    const [prefs, setPrefs] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('app_prefs') || '{}'); } catch { return {}; }
+    });
+
+    const handleSaveCompany = () => {
+        localStorage.setItem('company_profile', JSON.stringify(company));
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+    };
+
+    const handleSavePrefs = () => {
+        localStorage.setItem('app_prefs', JSON.stringify(prefs));
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+    };
+
+    return (
+        <div className="flex flex-col gap-6 max-w-4xl mx-auto">
+            <div>
+                <h2 className="text-2xl font-bold text-slate-800 flex items-center">
+                    <Settings2 className="w-6 h-6 mr-2 text-slate-500" />
+                    Settings
+                </h2>
+                <p className="text-slate-500 text-sm mt-1">Configure company profile, preferences, and system settings.</p>
+            </div>
+
+            <div className="flex gap-6">
+                {/* Tab List */}
+                <div className="w-48 shrink-0 flex flex-col gap-1">
+                    {TABS.map(t => {
+                        const Icon = t.icon;
+                        return (
+                            <button key={t.id} onClick={() => setTab(t.id)}
+                                className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left
+                  ${tab === t.id ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'text-slate-600 hover:bg-slate-100'}`}>
+                                <Icon className="w-4 h-4 mr-2.5 shrink-0" />
+                                {t.label}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Tab Content */}
+                <div className="flex-1 bg-white rounded-xl border border-slate-200 p-6">
+
+                    {/* Save Banner */}
+                    {saved && (
+                        <div className="mb-5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2">
+                            <Save className="w-4 h-4" /> Settings saved successfully.
+                        </div>
+                    )}
+
+                    {/* Company Profile */}
+                    {tab === 'company' && (
+                        <div className="space-y-5">
+                            <h3 className="font-bold text-slate-800 text-base">Company Profile</h3>
+                            <p className="text-xs text-slate-500">This information appears on printed Quotations and documents.</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {field('Company Name', <input value={company.name || ''} onChange={e => setCompany(c => ({ ...c, name: e.target.value }))} className={inputCls} placeholder="e.g. SecureVision Systems" />)}
+                                {field('GST Number', <input value={company.gst || ''} onChange={e => setCompany(c => ({ ...c, gst: e.target.value }))} className={inputCls} placeholder="27AABCX0000Y1Z5" />)}
+                                {field('Phone', <input value={company.phone || ''} onChange={e => setCompany(c => ({ ...c, phone: e.target.value }))} className={inputCls} placeholder="+91 98200 00000" />)}
+                                {field('Email', <input type="email" value={company.email || ''} onChange={e => setCompany(c => ({ ...c, email: e.target.value }))} className={inputCls} placeholder="billing@company.com" />)}
+                                <div className="col-span-2">
+                                    {field('Address', <textarea rows="2" value={company.address || ''} onChange={e => setCompany(c => ({ ...c, address: e.target.value }))} className={`${inputCls} resize-none`} placeholder="Full address including city, state, PIN" />)}
+                                </div>
+                                {field('Website', <input value={company.website || ''} onChange={e => setCompany(c => ({ ...c, website: e.target.value }))} className={inputCls} placeholder="https://www.company.com" />)}
+                                {field('Default GST Rate (%)', <select value={company.defaultGst || '18'} onChange={e => setCompany(c => ({ ...c, defaultGst: e.target.value }))} className={inputCls}>
+                                    {['0', '5', '12', '18'].map(v => <option key={v} value={v}>{v}%</option>)}
+                                </select>)}
+                            </div>
+                            <button onClick={handleSaveCompany} className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                                <Save className="w-4 h-4 mr-1.5" /> Save Company Profile
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Preferences */}
+                    {tab === 'preferences' && (
+                        <div className="space-y-5">
+                            <h3 className="font-bold text-slate-800 text-base">Application Preferences</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {field('Currency Symbol', <select value={prefs.currency || '₹'} onChange={e => setPrefs(p => ({ ...p, currency: e.target.value }))} className={inputCls}>
+                                    <option value="₹">₹ — Indian Rupee (INR)</option>
+                                    <option value="$">$ — US Dollar (USD)</option>
+                                    <option value="£">£ — British Pound (GBP)</option>
+                                </select>)}
+                                {field('Date Format', <select value={prefs.dateFormat || 'DD MMM YYYY'} onChange={e => setPrefs(p => ({ ...p, dateFormat: e.target.value }))} className={inputCls}>
+                                    <option value="DD MMM YYYY">DD MMM YYYY (24 Feb 2026)</option>
+                                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                </select>)}
+                                {field('Low Stock Alert Threshold (global default)', <input type="number" min="1" value={prefs.lowStockDefault || '5'} onChange={e => setPrefs(p => ({ ...p, lowStockDefault: e.target.value }))} className={inputCls} />)}
+                                {field('AMC Renewal Alert (days before)', <select value={prefs.amcAlertDays || '60'} onChange={e => setPrefs(p => ({ ...p, amcAlertDays: e.target.value }))} className={inputCls}>
+                                    {['30', '45', '60', '90'].map(d => <option key={d} value={d}>{d} days</option>)}
+                                </select>)}
+                            </div>
+                            <button onClick={handleSavePrefs} className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                                <Save className="w-4 h-4 mr-1.5" /> Save Preferences
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Notifications */}
+                    {tab === 'notifications' && (
+                        <div className="space-y-5">
+                            <h3 className="font-bold text-slate-800 text-base">Notification Settings</h3>
+                            <p className="text-xs text-slate-400 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                Email notifications require backend function configuration in Supabase. These toggles control which events are tracked in the UI.
+                            </p>
+                            {[
+                                { label: 'Low Stock Alert', sub: 'When a product falls below its minimum threshold', key: 'lowStock' },
+                                { label: 'AMC Renewal Due', sub: 'When a contract is within the alert window', key: 'amcRenewal' },
+                                { label: 'Project Status Change', sub: 'When a project moves stages in the pipeline', key: 'projectStatus' },
+                                { label: 'Quotation Accepted/Rejected', sub: 'When a quote status changes', key: 'quoteStatus' },
+                            ].map(item => (
+                                <div key={item.key} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg">
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                                        <p className="text-xs text-slate-500">{item.sub}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setPrefs(p => ({ ...p, [item.key]: !p[item.key] }))}
+                                        className={`w-11 h-6 rounded-full transition-colors relative ${prefs[item.key] ? 'bg-blue-500' : 'bg-slate-200'}`}
+                                    >
+                                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs[item.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Security */}
+                    {tab === 'security' && (
+                        <div className="space-y-5">
+                            <h3 className="font-bold text-slate-800 text-base">Security Settings</h3>
+                            <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                                <p className="text-sm font-semibold text-blue-800 mb-1">Authentication via Supabase</p>
+                                <p className="text-xs text-blue-600">Password changes, MFA, and session management are handled in the Supabase Auth dashboard.</p>
+                                <a href="https://supabase.com" target="_blank" rel="noreferrer"
+                                    className="inline-block mt-2 text-xs font-semibold text-blue-600 underline hover:text-blue-800">
+                                    Open Supabase Dashboard →
+                                </a>
+                            </div>
+                            {[
+                                { label: 'Session Timeout', sub: 'Enforce logout after inactivity', key: 'sessionTimeout', default: '60' },
+                            ].map(s => (
+                                <div key={s.key}>
+                                    {field(s.label, <select value={prefs[s.key] || s.default} onChange={e => setPrefs(p => ({ ...p, [s.key]: e.target.value }))} className={inputCls}>
+                                        <option value="30">30 minutes</option>
+                                        <option value="60">1 hour</option>
+                                        <option value="120">2 hours</option>
+                                        <option value="480">8 hours</option>
+                                        <option value="never">Never</option>
+                                    </select>)}
+                                </div>
+                            ))}
+                            <button onClick={handleSavePrefs} className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+                                <Save className="w-4 h-4 mr-1.5" /> Save Security Settings
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Settings;
