@@ -1,4 +1,12 @@
--- init_schema.sql
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  role text NOT NULL CHECK (role IN ('ADMIN', 'MANAGER', 'TECHNICIAN')),
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable read access for all authenticated users" ON public.user_roles;
+CREATE POLICY "Enable read access for all authenticated users" ON public.user_roles FOR SELECT TO authenticated USING (true);
 
 CREATE TABLE IF NOT EXISTS public.clients (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -13,20 +21,8 @@ CREATE TABLE IF NOT EXISTS public.clients (
 );
 
 ALTER TABLE public.clients ENABLE ROW LEVEL SECURITY;
-
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'clients' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.clients
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.clients;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.clients FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.suppliers (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -43,20 +39,8 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
 );
 
 ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'suppliers' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.suppliers
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.suppliers;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.suppliers FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.categories (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -66,20 +50,8 @@ CREATE TABLE IF NOT EXISTS public.categories (
 );
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'categories' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.categories
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.categories;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.categories FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.products (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -99,20 +71,8 @@ CREATE TABLE IF NOT EXISTS public.products (
 );
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'products' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.products
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.products;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.products FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.stock_transactions (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -120,27 +80,15 @@ CREATE TABLE IF NOT EXISTS public.stock_transactions (
   product_id uuid REFERENCES public.products(id) ON DELETE CASCADE NOT NULL,
   transaction_type text NOT NULL CHECK (transaction_type IN ('IN', 'OUT', 'ADJUST')),
   quantity integer NOT NULL,
-  reference_no text, -- Invoice ID, PO Number, OR Project ID
-  unit_cost numeric(10,2), -- The actual buy price at the time of purchase
+  reference_no text,
+  unit_cost numeric(10,2),
   notes text,
-  user_email text -- Track who made the entry
+  user_email text
 );
 
 ALTER TABLE public.stock_transactions ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'stock_transactions' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.stock_transactions
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.stock_transactions;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.stock_transactions FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.projects (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -158,20 +106,8 @@ CREATE TABLE IF NOT EXISTS public.projects (
 );
 
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'projects' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.projects
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.projects;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.projects FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.project_bom (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -179,25 +115,13 @@ CREATE TABLE IF NOT EXISTS public.project_bom (
   project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
   product_id uuid REFERENCES public.products(id) ON DELETE RESTRICT NOT NULL,
   quantity integer NOT NULL DEFAULT 1,
-  unit_sell_price numeric(10,2) NOT NULL, -- Agreed project price, can differ from master selling_price
+  unit_sell_price numeric(10,2) NOT NULL,
   notes text
 );
 
 ALTER TABLE public.project_bom ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'project_bom' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.project_bom
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.project_bom;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.project_bom FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.quotations (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -221,20 +145,8 @@ CREATE TABLE IF NOT EXISTS public.quotations (
 );
 
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'quotations' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.quotations
-        FOR ALL
-        TO authenticated
-        USING (true)
-        WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.quotations;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.quotations FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.amc_contracts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -252,16 +164,8 @@ CREATE TABLE IF NOT EXISTS public.amc_contracts (
 );
 
 ALTER TABLE public.amc_contracts ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'amc_contracts' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.amc_contracts FOR ALL TO authenticated USING (true) WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.amc_contracts;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.amc_contracts FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE TABLE IF NOT EXISTS public.payment_receipts (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -276,13 +180,5 @@ CREATE TABLE IF NOT EXISTS public.payment_receipts (
 );
 
 ALTER TABLE public.payment_receipts ENABLE ROW LEVEL SECURITY;
-
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies WHERE tablename = 'payment_receipts' AND policyname = 'Enable ALL for authenticated users only'
-    ) THEN
-        CREATE POLICY "Enable ALL for authenticated users only"
-        ON public.payment_receipts FOR ALL TO authenticated USING (true) WITH CHECK (true);
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "Enable ALL for authenticated users only" ON public.payment_receipts;
+CREATE POLICY "Enable ALL for authenticated users only" ON public.payment_receipts FOR ALL TO authenticated USING (true) WITH CHECK (true);
