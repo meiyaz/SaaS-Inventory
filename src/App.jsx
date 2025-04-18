@@ -23,8 +23,8 @@ import ProductImport from './pages/ProductImport';
 import Reports from './pages/Reports';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
-const ProtectedRoute = ({ children }) => {
-    const { user, loading } = useAuth();
+const ProtectedRoute = ({ children, allowedRoles }) => {
+    const { user, role, loading } = useAuth();
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
@@ -33,6 +33,11 @@ const ProtectedRoute = ({ children }) => {
     if (!user) {
         return <Navigate to="/login" replace />;
     }
+
+    if (allowedRoles && !allowedRoles.includes(role || 'TECHNICIAN')) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
     return children;
 };
 
@@ -70,25 +75,25 @@ function App() {
                             </ProtectedRoute>
                         }
                     >
-                        <Route path="dashboard" element={<Dashboard />} />
-                        <Route path="projects" element={<Projects />} />
-                        <Route path="projects/:projectId/bom" element={<BOM />} />
-                        <Route path="projects/:projectId/pricing" element={<Pricing />} />
-                        <Route path="clients" element={<Clients />} />
-                        <Route path="suppliers" element={<Suppliers />} />
-                        <Route path="categories" element={<Categories />} />
-                        <Route path="inventory" element={<Products />} />
-                        <Route path="inventory/import" element={<ProductImport />} />
-                        <Route path="inventory/in" element={<StockIn />} />
-                        <Route path="inventory/out" element={<StockOut />} />
-                        <Route path="inventory/logs" element={<StockLogs />} />
-                        <Route path="billing" element={<Quotations />} />
-                        <Route path="billing/quotation/new/:projectId" element={<QuotationBuilder />} />
-                        <Route path="billing/quotation/:quoteId" element={<QuotationPrint />} />
-                        <Route path="billing/quotation/:quoteId/print" element={<QuotationPrint />} />
-                        <Route path="amc" element={<AMC />} />
-                        <Route path="reports" element={<Reports />} />
-                        <Route path="settings" element={<Settings />} />
+                        <Route path="dashboard" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><Dashboard /></ProtectedRoute>} />
+                        <Route path="projects" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><Projects /></ProtectedRoute>} />
+                        <Route path="projects/:projectId/bom" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><BOM /></ProtectedRoute>} />
+                        <Route path="projects/:projectId/pricing" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Pricing /></ProtectedRoute>} />
+                        <Route path="clients" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Clients /></ProtectedRoute>} />
+                        <Route path="suppliers" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Suppliers /></ProtectedRoute>} />
+                        <Route path="categories" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Categories /></ProtectedRoute>} />
+                        <Route path="inventory" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><Products /></ProtectedRoute>} />
+                        <Route path="inventory/import" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><ProductImport /></ProtectedRoute>} />
+                        <Route path="inventory/in" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockIn /></ProtectedRoute>} />
+                        <Route path="inventory/out" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockOut /></ProtectedRoute>} />
+                        <Route path="inventory/logs" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockLogs /></ProtectedRoute>} />
+                        <Route path="billing" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Quotations /></ProtectedRoute>} />
+                        <Route path="billing/quotation/new/:projectId" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><QuotationBuilder /></ProtectedRoute>} />
+                        <Route path="billing/quotation/:quoteId" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><QuotationPrint /></ProtectedRoute>} />
+                        <Route path="billing/quotation/:quoteId/print" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><QuotationPrint /></ProtectedRoute>} />
+                        <Route path="amc" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><AMC /></ProtectedRoute>} />
+                        <Route path="reports" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Reports /></ProtectedRoute>} />
+                        <Route path="settings" element={<ProtectedRoute allowedRoles={['ADMIN']}><Settings /></ProtectedRoute>} />
                     </Route>
 
                     {/* Fallback routing */}
