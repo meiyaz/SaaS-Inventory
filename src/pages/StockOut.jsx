@@ -61,38 +61,30 @@ const StockOut = () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
 
-            // 1. Insert into transactions log as OUT
-            const { error: logError } = await supabase
-                .from('stock_transactions')
-                .insert([{
-                    product_id: selectedProduct,
-                    transaction_type: 'OUT',
-                    quantity: qtyInt,
-                    reference_no: referenceNo || null,
-                    unit_cost: prod.selling_price || 0, // Using selling price for outbound valuation
-                    notes: notes,
-                    user_email: user?.email || 'Unknown'
-                }]);
+            const { error: txError } = await supabase.from('stock_transactions').insert([{
+                product_id: selectedProduct,
+                transaction_type: 'OUT',
+                quantity: qtyInt,
+                unit_cost: prod.selling_price || 0,
+                reference_no: referenceNo || null,
+                notes: notes || null,
+                user_email: user?.email || 'unknown'
+            }]);
+            if (txError) throw txError;
 
-            if (logError) throw logError;
-
-            // 2. Decrement master inventory
-            const newTotal = prod.current_stock - qtyInt;
-
-            const { error: updateError } = await supabase
-                .from('products')
-                .update({ current_stock: newTotal })
+            const newStock = prod.current_stock - qtyInt;
+            const { error: prodError } = await supabase.from('products')
+                .update({ current_stock: newStock })
                 .eq('id', selectedProduct);
+            if (prodError) throw prodError;
 
-            if (updateError) throw updateError;
-
-            // 3. Success state and Reset
             setSuccessMsg(`Successfully dispatched ${qtyInt} units.`);
             setSelectedProduct('');
             setQuantity('');
             setReferenceNo('');
             setNotes('');
-            fetchInitialData(); // Refresh to get the latest accurate stock counts
+
+            fetchInitialData();
 
             setTimeout(() => setSuccessMsg(''), 5000);
 

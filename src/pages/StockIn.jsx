@@ -53,10 +53,8 @@ const StockIn = () => {
         setSuccessMsg('');
 
         try {
-            // 1. Get the current user email to log who did this
             const { data: { user } } = await supabase.auth.getUser();
 
-            // 2. Insert into the transactions log
             const qtyInt = parseInt(quantity);
             const { error: logError } = await supabase
                 .from('stock_transactions')
@@ -72,7 +70,6 @@ const StockIn = () => {
 
             if (logError) throw logError;
 
-            // 3. Update the master product's current_stock total
             const prod = products.find(p => p.id === selectedProduct);
             const newTotal = (prod.current_stock || 0) + qtyInt;
 
@@ -83,7 +80,6 @@ const StockIn = () => {
 
             if (updateError) throw updateError;
 
-            // 4. Success Reset
             setSuccessMsg(`Successfully added ${qtyInt} units to inventory!`);
             setSelectedProduct('');
             setQuantity('');

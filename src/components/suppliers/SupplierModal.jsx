@@ -14,7 +14,7 @@ const SupplierModal = ({ isOpen, onClose, supplier }) => {
         phone: '',
         address: '',
         gst_number: '',
-        categories: '', // Stored as comma separated string for simplicity
+        categories: '',
         payment_terms: '',
         notes: ''
     });
@@ -22,6 +22,7 @@ const SupplierModal = ({ isOpen, onClose, supplier }) => {
     useEffect(() => {
         if (supplier) {
             setFormData({
+                id: supplier.id,
                 company_name: supplier.company_name || '',
                 contact_person: supplier.contact_person || '',
                 email: supplier.email || '',
@@ -47,7 +48,7 @@ const SupplierModal = ({ isOpen, onClose, supplier }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        setLoading(true); // Reverted to setLoading as setSaving is not defined
         setError('');
 
         try {

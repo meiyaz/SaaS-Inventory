@@ -16,9 +16,10 @@ const ProductModal = ({ isOpen, onClose, product, categories, suppliers }) => {
         description: '',
         base_price: '',
         selling_price: '',
-        tax_rate: '18', // Default GST 18% for CCTV in India
+        tax_rate: '18',
         unit: 'Pieces',
-        min_stock_alert: '5'
+        min_stock_alert: '',
+        current_stock: '0',
     });
 
     useEffect(() => {
@@ -34,11 +35,12 @@ const ProductModal = ({ isOpen, onClose, product, categories, suppliers }) => {
                 selling_price: product.selling_price || '',
                 tax_rate: product.tax_rate || '18',
                 unit: product.unit || 'Pieces',
-                min_stock_alert: product.min_stock_alert || '5'
+                min_stock_alert: product.min_stock_alert || '',
+                current_stock: product.current_stock || '0',
             });
         } else {
             setFormData({
-                sku: '', name: '', brand: '', category_id: '', supplier_id: '', description: '', base_price: '', selling_price: '', tax_rate: '18', unit: 'Pieces', min_stock_alert: '5'
+                sku: '', name: '', brand: '', category_id: '', supplier_id: '', description: '', base_price: '', selling_price: '', tax_rate: '18', unit: 'Pieces', min_stock_alert: '', current_stock: '0'
             });
         }
     }, [product]);
@@ -51,19 +53,19 @@ const ProductModal = ({ isOpen, onClose, product, categories, suppliers }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        setSaving(true);
         setError('');
 
         try {
-            // Ensure numeric fields are actually numbers or null before inserting to PG
-            const dataToSave = {
+            const payload = {
                 ...formData,
                 category_id: formData.category_id || null,
                 supplier_id: formData.supplier_id || null,
-                base_price: formData.base_price ? parseFloat(formData.base_price) : 0,
-                selling_price: formData.selling_price ? parseFloat(formData.selling_price) : 0,
-                tax_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : 0,
-                min_stock_alert: formData.min_stock_alert ? parseInt(formData.min_stock_alert) : 0,
+                base_price: parseFloat(formData.base_price) || 0,
+                selling_price: parseFloat(formData.selling_price) || 0,
+                tax_rate: parseFloat(formData.tax_rate) || 0,
+                min_stock_alert: parseInt(formData.min_stock_alert) || 0,
+                current_stock: parseInt(formData.current_stock) || 0,
             };
 
             let resultError;
@@ -71,13 +73,13 @@ const ProductModal = ({ isOpen, onClose, product, categories, suppliers }) => {
             if (isEditing) {
                 const { error: updateError } = await supabase
                     .from('products')
-                    .update(dataToSave)
+                    .update(payload)
                     .eq('id', product.id);
                 resultError = updateError;
             } else {
                 const { error: insertError } = await supabase
                     .from('products')
-                    .insert([dataToSave]);
+                    .insert([payload]);
                 resultError = insertError;
             }
 
