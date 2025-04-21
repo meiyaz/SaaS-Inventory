@@ -43,35 +43,22 @@ const Pricing = () => {
     if (loading) return <div className="text-center py-20 text-slate-500">Loading pricing engine...</div>;
     if (!project) return <div className="text-center py-20 text-red-500">Project not found.</div>;
 
-    // ---- CALCULATIONS (all in INR) ----
-    // 1. Total material buy cost (from base_price in master catalog)
-    const totalBuyCost = bomItems.reduce((s, item) =>
-        s + ((item.products?.base_price || 0) * item.quantity), 0);
+    // P&L Formulas
+    const totalBuy = bomItems.reduce((sum, item) => sum + (Number(item.products?.base_price || 0) * item.quantity), 0);
+    const totalSell = bomItems.reduce((sum, item) => sum + (Number(item.unit_sell_price || 0) * item.quantity), 0);
 
-    // 2. BOM sell value (from BOM agreed unit_sell_price)
-    const bomSellValue = bomItems.reduce((s, item) =>
-        s + (item.unit_sell_price * item.quantity), 0);
+    const totalExtras = (Number(cablingMeters) * Number(cablingCostPm)) + Number(laborCost) + Number(otherCost);
 
-    // 3. Extras
-    const cablingTotal = parseFloat(cablingMeters || 0) * parseFloat(cablingCostPm || 0);
-    const laborTotal = parseFloat(laborCost || 0);
-    const otherTotal = parseFloat(otherCost || 0);
-    const extrasTotal = cablingTotal + laborTotal + otherTotal;
+    const subTotal = totalSell + totalExtras;
 
-    // 4. Sub-total before discount/margin
-    const subTotal = bomSellValue + extrasTotal;
+    const discountAmt = (subTotal * Number(discountPct)) / 100;
+    const finalBeforeTax = subTotal - discountAmt;
 
-    // 5. Apply discount
-    const discountAmt = subTotal * (parseFloat(discountPct || 0) / 100);
-    const afterDiscount = subTotal - discountAmt;
+    const gstAmt = (finalBeforeTax * Number(gstRate)) / 100;
+    const grandTotal = finalBeforeTax + gstAmt;
 
-    // 6. GST
-    const gstAmt = afterDiscount * (parseFloat(gstRate) / 100);
-    const grandTotal = afterDiscount + gstAmt;
-
-    // 7. Margin on buy cost
-    const grossProfit = afterDiscount - totalBuyCost;
-    const marginPct = totalBuyCost > 0 ? (grossProfit / totalBuyCost) * 100 : 0;
+    // Margin = (Final Pre-Tax Revenue - Total Base Cost) / Final Pre-Tax Revenue
+    const marginPct = finalBeforeTax > 0 ? ((finalBeforeTax - totalBuy) / finalBeforeTax) * 100 : 0;
 
     const fmt = (n) => `₹${Math.abs(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 

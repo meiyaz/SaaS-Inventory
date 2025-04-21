@@ -24,60 +24,65 @@ const BOM = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    // New line state
-    const [newProductId, setNewProductId] = useState('');
-    const [newQty, setNewQty] = useState(1);
-    const [newUnitSellPrice, setNewUnitSellPrice] = useState('');
-    const [newNotes, setNewNotes] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState('');
+    const [quantity, setQuantity] = useState(1);
+    const [unitSellPrice, setUnitSellPrice] = useState('');
+    const [notes, setNotes] = useState('');
 
-    useEffect(() => { fetchData(); }, [projectId]);
+    useEffect(() => {
+        fetchProject();
+        fetchBOM();
+        fetchProducts();
+    }, [projectId]);
 
-    const fetchData = async () => {
-        setLoading(true);
-        const [projRes, bomRes, prodRes] = await Promise.all([
-            supabase.from('projects').select('*, clients(name, company_name)').eq('id', projectId).single(),
-            supabase.from('project_bom').select('*, products(name, sku, brand, selling_price)').eq('project_id', projectId).order('created_at'),
-            supabase.from('products').select('id, name, sku, selling_price, current_stock').order('name'),
-        ]);
-        if (projRes.data) setProject(projRes.data);
-        if (!bomRes.error) setBomItems(bomRes.data || []);
-        if (!prodRes.error) setProducts(prodRes.data || []);
-        setLoading(false);
+    const fetchProject = async () => {
+        const { data } = await supabase.from('projects').select('*, clients(*)').eq('id', projectId).single();
+        setProject(data);
     };
 
-    // Auto-fill sell price from master product's selling_price when a product is selected
+    const fetchBOM = async () => {
+        const { data } = await supabase.from('project_bom').select('*, products(*)').eq('project_id', projectId).order('created_at');
+        setBomItems(data || []);
+    };
+
+    const fetchProducts = async () => {
+        const { data } = await supabase.from('products').select('id, name, sku, selling_price, current_stock').order('name');
+        setProducts(data || []);
+        setLoading(false); // Set loading to false after all data is fetched
+    };
+
     const handleProductSelect = (e) => {
         const id = e.target.value;
-        setNewProductId(id);
+        setSelectedProduct(id);
         if (id) {
             const prod = products.find(p => p.id === id);
-            if (prod) setNewUnitSellPrice(prod.selling_price?.toString() || '');
+            if (prod) setUnitSellPrice(prod.selling_price?.toString() || '');
         } else {
-            setNewUnitSellPrice('');
+            setUnitSellPrice('');
         }
     };
 
     const handleAddLine = async (e) => {
         e.preventDefault();
-        if (!newProductId || !newQty || !newUnitSellPrice) return;
+        if (!selectedProduct || !quantity || !unitSellPrice) return;
         setSaving(true);
         setError('');
 
         const { error: err } = await supabase.from('project_bom').insert([{
             project_id: projectId,
-            product_id: newProductId,
-            quantity: parseInt(newQty),
-            unit_sell_price: parseFloat(newUnitSellPrice),
-            notes: newNotes || null,
+            product_id: selectedProduct,
+            quantity: parseInt(quantity),
+            unit_sell_price: parseFloat(unitSellPrice),
+            notes: notes || null,
         }]);
 
         if (err) {
             setError('Failed to add item: ' + err.message);
         } else {
-            setNewProductId('');
-            setNewQty(1);
-            setNewUnitSellPrice('');
-            setNewNotes('');
+            setSelectedProduct('');
+            setQuantity(1);
+            setUnitSellPrice('');
+            setNotes('');
             fetchData();
         }
         setSaving(false);
@@ -187,7 +192,7 @@ const BOM = () => {
                     <form onSubmit={handleAddLine} className="flex flex-wrap gap-3 items-end">
                         <div className="flex-1 min-w-[200px]">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Product <span className="text-red-500">*</span></label>
-                            <select required value={newProductId} onChange={handleProductSelect}
+                            <select required value={selectedProduct} onChange={handleProductSelect}
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500 bg-white">
                                 <option value="">— Select Product —</option>
                                 {products.map(p => (
@@ -197,17 +202,17 @@ const BOM = () => {
                         </div>
                         <div className="w-24">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Qty <span className="text-red-500">*</span></label>
-                            <input type="number" min="1" required value={newQty} onChange={(e) => setNewQty(e.target.value)}
+                            <input type="number" min="1" required value={quantity} onChange={(e) => setQuantity(e.target.value)}
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
                         </div>
                         <div className="w-36">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Unit Sell Price (₹) <span className="text-red-500">*</span></label>
-                            <input type="number" step="0.01" min="0" required value={newUnitSellPrice} onChange={(e) => setNewUnitSellPrice(e.target.value)}
+                            <input type="number" step="0.01" min="0" required value={unitSellPrice} onChange={(e) => setUnitSellPrice(e.target.value)}
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
                         </div>
                         <div className="flex-1 min-w-[140px]">
                             <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
-                            <input type="text" value={newNotes} onChange={(e) => setNewNotes(e.target.value)} placeholder="Optional note"
+                            <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional note"
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500" />
                         </div>
                         <button type="submit" disabled={saving}
