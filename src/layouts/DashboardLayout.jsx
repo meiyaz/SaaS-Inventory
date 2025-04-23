@@ -48,12 +48,12 @@ const Sidebar = () => {
     navItems = navItems.filter(item => item.roles.includes(role || 'TECHNICIAN'));
 
     return (
-        <div className="w-64 bg-slate-900 text-white flex flex-col min-h-screen transition-all duration-300">
-            <div className="p-6 flex items-center justify-center border-b border-slate-800">
+        <div className="w-64 bg-slate-900 text-white flex flex-col h-screen transition-all duration-300">
+            <div className="p-6 flex items-center justify-center border-b border-slate-800 shrink-0">
                 <h1 className="text-xl font-bold tracking-wider text-blue-400">STOCK SIGHT</h1>
             </div>
 
-            <nav className="flex-1 px-4 py-6 space-y-2">
+            <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     return (
@@ -75,14 +75,14 @@ const Sidebar = () => {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-slate-800">
+            <div className="p-4 border-t border-slate-800 shrink-0">
                 <div className="flex items-center px-4 py-3 mb-2 rounded-lg bg-slate-800">
-                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold mr-3">
-                        A
+                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center font-bold mr-3 uppercase">
+                        {user?.email?.charAt(0) || 'U'}
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <p className="text-sm font-medium truncate">Admin User</p>
-                        <p className="text-xs text-slate-400 truncate">admin@company.com</p>
+                        <p className="text-sm font-medium truncate capitalize">{role ? role.toLowerCase() : 'User'}</p>
+                        <p className="text-xs text-slate-400 truncate">{user?.email || 'Loading...'}</p>
                     </div>
                 </div>
                 <button
@@ -99,10 +99,10 @@ const Sidebar = () => {
 
 export const DashboardLayout = () => {
     return (
-        <div className="flex min-h-screen bg-slate-50">
+        <div className="flex h-screen bg-slate-50 overflow-hidden">
             <Sidebar />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-white border-b flex items-center px-6 justify-between shadow-sm z-10">
+                <header className="h-16 bg-white border-b flex items-center px-6 justify-between shadow-sm z-10 shrink-0">
                     <button className="p-2 mr-4 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden">
                         <Menu className="h-6 w-6" />
                     </button>
