@@ -8,20 +8,34 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
+    const [orgId, setOrgId] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUserRole = async (userId) => {
+    const fetchUserContext = async (userId) => {
         if (!userId) {
             setRole(null);
+            setOrgId(null);
             return;
         }
         try {
-            const { data, error } = await supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle();
+            const { data, error } = await supabase
+                .from('organization_members')
+                .select('role, organization_id')
+                .eq('user_id', userId)
+                .maybeSingle();
+
             if (error) throw error;
-            setRole(data?.role || 'TECHNICIAN');
+            if (data) {
+                setRole(data.role || 'TECHNICIAN');
+                setOrgId(data.organization_id);
+            } else {
+                setRole('TECHNICIAN');
+                setOrgId(null);
+            }
         } catch (error) {
-            console.warn("Could not fetch user role, defaulting to TECHNICIAN:", error.message);
+            console.warn("Could not fetch user context:", error.message);
             setRole('TECHNICIAN');
+            setOrgId(null);
         }
     };
 
@@ -37,15 +51,17 @@ export const AuthProvider = ({ children }) => {
                 if (mounted) setUser(currentUser);
 
                 if (currentUser) {
-                    await fetchUserRole(currentUser.id);
+                    await fetchUserContext(currentUser.id);
                 } else if (mounted) {
                     setRole(null);
+                    setOrgId(null);
                 }
             } catch (err) {
                 console.warn("Session retrieval failed:", err.message);
                 if (mounted) {
                     setUser(null);
                     setRole(null);
+                    setOrgId(null);
                 }
             } finally {
                 if (mounted) setLoading(false);
@@ -59,12 +75,13 @@ export const AuthProvider = ({ children }) => {
             if (mounted) setUser(currentUser);
 
             if (currentUser) {
-                fetchUserRole(currentUser.id).finally(() => {
+                fetchUserContext(currentUser.id).finally(() => {
                     if (mounted) setLoading(false);
                 });
             } else {
                 if (mounted) {
                     setRole(null);
+                    setOrgId(null);
                     setLoading(false);
                 }
             }
@@ -85,7 +102,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, role, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, role, orgId, login, logout, loading }}>
             {loading ? (
                 <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>

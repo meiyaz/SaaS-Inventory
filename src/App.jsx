@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
+import Landing from './pages/Landing';
+import Register from './pages/Register';
 import Login from './pages/Login';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
@@ -63,7 +64,8 @@ function App() {
             <Router>
                 <Routes>
                     {/* Public Routes */}
-                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/" element={<Landing />} />
+                    <Route path="/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
 
                     {/* Protected Admin Routes */}
@@ -82,11 +84,11 @@ function App() {
                         <Route path="clients" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Clients /></ProtectedRoute>} />
                         <Route path="suppliers" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Suppliers /></ProtectedRoute>} />
                         <Route path="categories" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Categories /></ProtectedRoute>} />
-                        <Route path="inventory" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><Products /></ProtectedRoute>} />
-                        <Route path="inventory/import" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><ProductImport /></ProtectedRoute>} />
-                        <Route path="inventory/in" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockIn /></ProtectedRoute>} />
-                        <Route path="inventory/out" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockOut /></ProtectedRoute>} />
-                        <Route path="inventory/logs" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockLogs /></ProtectedRoute>} />
+                        <Route path="products" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><Products /></ProtectedRoute>} />
+                        <Route path="products/import" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><ProductImport /></ProtectedRoute>} />
+                        <Route path="products/in" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockIn /></ProtectedRoute>} />
+                        <Route path="products/out" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockOut /></ProtectedRoute>} />
+                        <Route path="products/logs" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><StockLogs /></ProtectedRoute>} />
                         <Route path="billing" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><Quotations /></ProtectedRoute>} />
                         <Route path="billing/quotation/new/:projectId" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><QuotationBuilder /></ProtectedRoute>} />
                         <Route path="billing/quotation/:quoteId" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}><QuotationPrint /></ProtectedRoute>} />
