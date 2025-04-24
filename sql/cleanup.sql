@@ -1,10 +1,10 @@
 -- 1. Drop Demo Authentication Users
 DO $$
 BEGIN
-  DELETE FROM auth.users WHERE id IN (
-    '00000000-0000-0000-0000-000000000001',
-    '00000000-0000-0000-0000-000000000002',
-    '00000000-0000-0000-0000-000000000003'
+  DELETE FROM auth.users WHERE email IN (
+    'admin@company.com',
+    'manager@company.com',
+    'technician@company.com'
   );
 END $$;
 
@@ -19,4 +19,10 @@ DROP TABLE IF EXISTS public.products CASCADE;
 DROP TABLE IF EXISTS public.categories CASCADE;
 DROP TABLE IF EXISTS public.suppliers CASCADE;
 DROP TABLE IF EXISTS public.clients CASCADE;
+DROP TABLE IF EXISTS public.organization_members CASCADE;
+DROP TABLE IF EXISTS public.organizations CASCADE;
 DROP TABLE IF EXISTS public.user_roles CASCADE;
+
+-- 3. Drop Triggers/Functions
+DROP FUNCTION IF EXISTS public.inject_organization_id() CASCADE;
+DROP FUNCTION IF EXISTS public.get_current_org_id() CASCADE;
