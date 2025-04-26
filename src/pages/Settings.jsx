@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
-import { Settings2, Building2, Save, Key, Bell, Palette } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings2, Building2, Save, Key, Bell, Palette, CreditCard, CheckCircle2, Shield } from 'lucide-react';
+import { supabase } from '../supabase';
+import { useAuth } from '../context/AuthContext';
 
 const TABS = [
     { id: 'company', label: 'Company Profile', icon: Building2 },
+    { id: 'permissions', label: 'Role Permissions', icon: Shield },
     { id: 'preferences', label: 'Preferences', icon: Palette },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Key },
+    { id: 'billing', label: 'Billing & Plan', icon: CreditCard },
 ];
 
 const inputCls = "w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 bg-white";
@@ -19,8 +23,18 @@ const field = (label, children) => (
 );
 
 const Settings = () => {
+    const { orgId } = useAuth();
     const [tab, setTab] = useState('company');
     const [saved, setSaved] = useState(false);
+    const [roleSettings, setRoleSettings] = useState({ MANAGER: [], TECHNICIAN: [] });
+
+    useEffect(() => {
+        if (orgId) {
+            supabase.from('organizations').select('role_settings').eq('id', orgId).single().then(({ data }) => {
+                if (data?.role_settings) setRoleSettings(data.role_settings);
+            });
+        }
+    }, [orgId]);
 
     // Company profile stored in localStorage for demo
     const [company, setCompany] = useState(() => {
@@ -41,6 +55,23 @@ const Settings = () => {
         localStorage.setItem('app_prefs', JSON.stringify(prefs));
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
+    };
+
+    const handleSavePermissions = async () => {
+        await supabase.from('organizations').update({ role_settings: roleSettings }).eq('id', orgId);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+    };
+
+    const togglePermission = (role, moduleKey) => {
+        setRoleSettings(prev => {
+            const current = prev[role] || [];
+            if (current.includes(moduleKey)) {
+                return { ...prev, [role]: current.filter(m => m !== moduleKey) };
+            } else {
+                return { ...prev, [role]: [...current, moduleKey] };
+            }
+        });
     };
 
     return (
@@ -76,6 +107,53 @@ const Settings = () => {
                     {saved && (
                         <div className="mb-5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-2.5 text-sm font-medium flex items-center gap-2">
                             <Save className="w-4 h-4" /> Settings saved successfully.
+                        </div>
+                    )}
+
+                    {/* Billing & Subscription */}
+                    {tab === 'billing' && (
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="font-bold text-slate-800 text-base">Subscription Plan</h3>
+                                <p className="text-xs text-slate-500 mt-1">Manage your SaaS billing and active workspace limits.</p>
+                            </div>
+
+                            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+                                <div className="relative z-10 flex justify-between items-start">
+                                    <div>
+                                        <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-500/30 text-xs font-bold tracking-wider uppercase mb-3 border border-blue-400/20">
+                                            Current Plan
+                                        </div>
+                                        <h4 className="text-3xl font-extrabold mb-1">SaaS Inventory Pro</h4>
+                                        <p className="text-blue-200 text-sm mb-6">Billed $29.00/month. Next charge on Oct 1st.</p>
+
+                                        <div className="space-y-2">
+                                            <div className="flex items-center text-sm font-medium"><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-400" /> Unlimited Products</div>
+                                            <div className="flex items-center text-sm font-medium"><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-400" /> 5 Technician Accounts</div>
+                                            <div className="flex items-center text-sm font-medium"><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-400" /> Quotation Builder</div>
+                                            <div className="flex items-center text-sm font-medium"><CheckCircle2 className="w-4 h-4 mr-2 text-emerald-400" /> API Access</div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <button className="bg-white text-blue-700 hover:bg-slate-50 px-5 py-2.5 rounded-lg text-sm font-bold shadow-md transition-colors">
+                                            Manage via Stripe
+                                        </button>
+                                        <div className="mt-4 text-xs font-medium text-blue-200">
+                                            Account ID: {company?.name?.slice(0, 3).toUpperCase() || 'ORG'}-001<br />
+                                            Since: Mar 2026
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="border border-slate-200 rounded-xl p-6 bg-slate-50">
+                                <h4 className="font-bold text-slate-800 mb-2">Need Enterprise Features?</h4>
+                                <p className="text-sm text-slate-600 mb-4">Upgrade to Enterprise for white-labeled client portals, massive storage, and unmetered API endpoints.</p>
+                                <button className="px-5 py-2.5 bg-slate-800 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 transition">
+                                    Contact Sales
+                                </button>
+                            </div>
                         </div>
                     )}
 

@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
     const [orgId, setOrgId] = useState(null);
+    const [permissions, setPermissions] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const fetchUserContext = async (userId) => {
@@ -20,22 +21,32 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data, error } = await supabase
                 .from('organization_members')
-                .select('role, organization_id')
+                .select('role, organization_id, organizations(role_settings)')
                 .eq('user_id', userId)
                 .maybeSingle();
 
             if (error) throw error;
             if (data) {
-                setRole(data.role || 'TECHNICIAN');
+                const userRole = data.role || 'TECHNICIAN';
+                setRole(userRole);
                 setOrgId(data.organization_id);
+
+                if (userRole === 'ADMIN') {
+                    setPermissions(['ADMIN_ALL']);
+                } else {
+                    const settings = data.organizations?.role_settings || {};
+                    setPermissions(settings[userRole] || []);
+                }
             } else {
                 setRole('TECHNICIAN');
                 setOrgId(null);
+                setPermissions([]);
             }
         } catch (error) {
             console.warn("Could not fetch user context:", error.message);
             setRole('TECHNICIAN');
             setOrgId(null);
+            setPermissions([]);
         }
     };
 
@@ -102,7 +113,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, role, orgId, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, role, orgId, permissions, login, logout, loading }}>
             {loading ? (
                 <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
