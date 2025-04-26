@@ -86,7 +86,7 @@ const Quotations = () => {
                         <Download className="w-4 h-4 mr-1.5" /> Export
                     </button>
                     <button
-                        onClick={() => { setProjectSearch(''); setPickerOpen(true); }}
+                        onClick={() => navigate('/billing/quotation/new')}
                         className="inline-flex items-center px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-medium transition-colors shrink-0"
                     >
                         <Plus className="w-4 h-4 mr-1.5" /> New Quotation
@@ -177,60 +177,7 @@ const Quotations = () => {
                 </table>
             </div>
 
-            {/* Project Picker Modal */}
-            {pickerOpen && (
-                <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-                        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-                            <h3 className="font-bold text-slate-900 flex items-center">
-                                <FolderKanban className="w-4 h-4 mr-2 text-violet-500" />
-                                Select a Project
-                            </h3>
-                            <button onClick={() => setPickerOpen(false)} className="text-slate-400 hover:text-slate-700">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="p-4">
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="Search projects..."
-                                value={projectSearch}
-                                onChange={e => setProjectSearch(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 mb-3"
-                            />
-                            <div className="space-y-1 max-h-72 overflow-y-auto">
-                                {projects
-                                    .filter(p =>
-                                        !projectSearch ||
-                                        p.title.toLowerCase().includes(projectSearch.toLowerCase()) ||
-                                        p.project_code?.toLowerCase().includes(projectSearch.toLowerCase())
-                                    )
-                                    .map(p => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => { setPickerOpen(false); navigate(`/billing/quotation/new/${p.id}`); }}
-                                            className="w-full text-left px-3 py-3 rounded-lg hover:bg-amber-50 hover:border-amber-200 border border-transparent transition-colors"
-                                        >
-                                            <p className="text-sm font-semibold text-slate-800">{p.title}</p>
-                                            <p className="text-xs text-slate-400 mt-0.5">
-                                                {p.project_code} · {p.clients?.company_name || p.clients?.name}
-                                            </p>
-                                        </button>
-                                    ))
-                                }
-                                {projects.filter(p =>
-                                    !projectSearch ||
-                                    p.title.toLowerCase().includes(projectSearch.toLowerCase()) ||
-                                    p.project_code?.toLowerCase().includes(projectSearch.toLowerCase())
-                                ).length === 0 && (
-                                        <p className="text-center text-sm text-slate-400 py-6">No projects found.</p>
-                                    )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Picker removed for decoupled ad-hoc builder */}
         </div>
     );
 };

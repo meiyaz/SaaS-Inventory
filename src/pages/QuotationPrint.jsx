@@ -21,18 +21,29 @@ const QuotationPrint = () => {
         setLoading(true);
         const { data: q } = await supabase
             .from('quotations')
-            .select('*, projects(title, project_code, site_address, clients(name, company_name, gst_number, address, phone, email))')
+            .select('*, clients(name, company_name, gst_number, address, phone, email), projects(title, project_code, site_address, clients(name, company_name, gst_number, address, phone, email))')
             .eq('id', quoteId)
             .single();
 
         if (q) {
             setQuote(q);
-            const { data: bom } = await supabase
-                .from('project_bom')
-                .select('*, products(name, sku)')
-                .eq('project_id', q.project_id)
-                .order('created_at');
-            setBomItems(bom || []);
+            if (q.line_items && q.line_items.length > 0) {
+                // Use embedded line items natively
+                setBomItems(q.line_items);
+            } else if (q.project_id) {
+                // Fallback for legacy
+                const { data: bom } = await supabase
+                    .from('project_bom')
+                    .select('*, products(name, sku)')
+                    .eq('project_id', q.project_id)
+                    .order('created_at');
+
+                setBomItems((bom || []).map(b => ({
+                    ...b,
+                    name: b.products?.name,
+                    sku: b.products?.sku
+                })));
+            }
         }
         setLoading(false);
     };
@@ -42,7 +53,7 @@ const QuotationPrint = () => {
     if (loading) return <div className="text-center py-20 text-slate-500">Loading quotation...</div>;
     if (!quote) return <div className="text-center py-20 text-red-500">Quotation not found.</div>;
 
-    const client = quote.projects?.clients;
+    const client = quote.clients || quote.projects?.clients;
     const project = quote.projects;
 
     const settings = JSON.parse(localStorage.getItem('cctv_settings')) || {};
@@ -115,8 +126,8 @@ const QuotationPrint = () => {
                             <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                 <td className="px-4 py-2.5 text-slate-500">{idx + 1}</td>
                                 <td className="px-4 py-2.5">
-                                    <div className="font-medium text-slate-900">{item.products?.name}</div>
-                                    <div className="text-xs text-slate-400 font-mono">{item.products?.sku}</div>
+                                    <div className="font-medium text-slate-900">{item.name}</div>
+                                    <div className="text-xs text-slate-400 font-mono">{item.sku}</div>
                                 </td>
                                 <td className="px-4 py-2.5 text-center text-slate-700">{item.quantity}</td>
                                 <td className="px-4 py-2.5 text-right text-slate-700">{fmt(item.unit_sell_price)}</td>
@@ -127,12 +138,11 @@ const QuotationPrint = () => {
                         {[
                             { label: 'Cabling & Installation Material', value: quote.cabling_cost },
                             { label: 'Labour Charges', value: quote.labor_cost },
-                            { label: 'Miscellaneous', value: quote.other_cost },
+                            { label: 'Miscellaneous Expenditures', value: quote.other_cost },
                         ].filter(r => r.value > 0).map((r, i) => (
                             <tr key={i} className="bg-slate-50 italic">
-                                <td className="px-4 py-2 text-slate-400">{bomItems.length + i + 1}</td>
-                                <td className="px-4 py-2 text-slate-600" colSpan="2">{r.label}</td>
-                                <td className="px-4 py-2"></td>
+                                <td className="px-4 py-2 text-slate-400 text-center">{bomItems.length + i + 1}</td>
+                                <td className="px-4 py-2 text-slate-600" colSpan="3">{r.label}</td>
                                 <td className="px-4 py-2 text-right font-semibold text-slate-900">{fmt(r.value)}</td>
                             </tr>
                         ))}
