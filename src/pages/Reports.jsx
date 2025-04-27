@@ -35,6 +35,7 @@ const Reports = () => {
         quotes: [],
         amc: [],
         lowStock: [],
+        purchases: [],
     });
 
     useEffect(() => { fetchAll(); }, []);
@@ -46,12 +47,14 @@ const Reports = () => {
             supabase.from('quotations').select('id, quote_number, status, grand_total, created_at, projects(title, clients(company_name, name))').order('created_at', { ascending: false }),
             supabase.from('amc_contracts').select('id, contract_number, status, annual_value, start_date, end_date, clients(company_name, name)').order('end_date'),
             supabase.from('products').select('id, sku, name, current_stock, min_stock_alert, selling_price'),
+            supabase.from('stock_transactions').select('quantity, unit_cost').eq('transaction_type', 'IN'),
         ]);
         setData({
             projects: pRes.data || [],
             quotes: qRes.data || [],
             amc: aRes.data || [],
             lowStock: (sRes.data || []).filter(p => p.current_stock <= p.min_stock_alert),
+            purchases: tRes?.data || [],
         });
         setLoading(false);
     };
@@ -61,6 +64,12 @@ const Reports = () => {
     const acceptedValue = data.quotes.filter(q => q.status === 'ACCEPTED').reduce((s, q) => s + Number(q.grand_total || 0), 0);
     const amcRevenue = data.amc.filter(a => a.status === 'ACTIVE').reduce((s, a) => s + Number(a.annual_value || 0), 0);
     const winRate = data.quotes.length > 0 ? Math.round((data.quotes.filter(q => q.status === 'ACCEPTED').length / data.quotes.filter(q => ['ACCEPTED', 'REJECTED'].includes(q.status)).length) * 100) || 0 : 0;
+
+    // P&L Calculations
+    const totalPurchases = data.purchases.reduce((s, t) => s + (Number(t.quantity || 0) * Number(t.unit_cost || 0)), 0);
+    const grossRevenue = acceptedValue + amcRevenue + totalRevenue;
+    const netProfit = grossRevenue - totalPurchases;
+    const marginPct = grossRevenue > 0 ? Math.round((netProfit / grossRevenue) * 100) : 0;
 
     // Formatting Data for Recharts
     const projectStatusData = Object.entries(
@@ -109,9 +118,9 @@ const Reports = () => {
             {/* Premium KPI Summary Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Completed Revenue', icon: TrendingUp, value: fmt(totalRevenue), sub: `${data.projects.filter(p => p.status === 'COMPLETED').length} projects completed`, color: 'emerald' },
-                    { label: 'Accepted Quotes', icon: FileText, value: fmt(acceptedValue), sub: `Est. pool: ${fmt(quotedValue)} pipeline`, color: 'amber' },
-                    { label: 'Active AMC Value', icon: ShieldCheck, value: fmt(amcRevenue), sub: `${data.amc.filter(a => a.status === 'ACTIVE').length} active contracts`, color: 'blue' },
+                    { label: 'Gross Revenue', icon: TrendingUp, value: fmt(grossRevenue), sub: 'Won Quotes + AMC + Projects', color: 'emerald' },
+                    { label: 'Total Purchases (Expenses)', icon: Package, value: fmt(totalPurchases), sub: 'Inventory sourcing cost', color: 'rose' },
+                    { label: 'Net Profit / Margin', icon: BarChart3, value: fmt(netProfit), sub: `Gross Margin: ${marginPct}%`, color: netProfit >= 0 ? 'amber' : 'red' },
                     { label: 'Quote Win Rate', icon: TrendingUp, value: `${winRate}%`, sub: `${data.quotes.filter(q => q.status === 'ACCEPTED').length} won / ${data.quotes.filter(q => q.status === 'REJECTED').length} lost`, color: 'violet' },
                 ].map(k => (
                     <div key={k.label} className={`relative overflow-hidden bg-white rounded-xl shadow-sm border border-slate-200 p-5 group hover:border-${k.color}-300 transition-colors`}>

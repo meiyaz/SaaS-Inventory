@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
   phone text,
   billing_email text,
   subscription_tier text DEFAULT 'FREE',
+  role_settings jsonb DEFAULT '{"MANAGER":["dashboard","projects","clients","suppliers","categories","products","products_import","products_in","products_out","products_logs","billing","amc","reports"],"TECHNICIAN":["dashboard","projects","products_in","products_out","tasks"]}'::jsonb,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -156,9 +157,11 @@ CREATE TABLE IF NOT EXISTS public.quotations (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
   quote_number text UNIQUE NOT NULL,
-  project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
+  project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE,
+  client_id uuid REFERENCES public.clients(id) ON DELETE CASCADE,
   status text NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','SENT','ACCEPTED','REJECTED','EXPIRED')),
   valid_until date,
+  line_items jsonb DEFAULT '[]'::jsonb,
   bom_sell_value numeric(12,2) DEFAULT 0,
   cabling_cost numeric(12,2) DEFAULT 0,
   labor_cost numeric(12,2) DEFAULT 0,
@@ -216,6 +219,30 @@ CREATE POLICY "Enable ALL for users in same organization" ON public.payment_rece
 
 
 -- ==========================================
+-- TASKS MODULE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.tasks (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  organization_id uuid REFERENCES public.organizations(id) ON DELETE CASCADE,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+  title text NOT NULL,
+  description text,
+  assigned_to uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  status text NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'BLOCKED')),
+  priority text NOT NULL DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+  due_date date,
+  comments jsonb DEFAULT '[]'::jsonb
+);
+
+ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable ALL for users in same organization" ON public.tasks;
+CREATE POLICY "Enable ALL for users in same organization" ON public.tasks 
+  FOR ALL TO authenticated 
+  USING (organization_id IN (SELECT organization_id FROM public.organization_members WHERE user_id = auth.uid())) 
+  WITH CHECK (organization_id IN (SELECT organization_id FROM public.organization_members WHERE user_id = auth.uid()));
+
+-- ==========================================
 -- PostgreSQL Trigger: Auto-inject organization_id
 -- ==========================================
 CREATE OR REPLACE FUNCTION public.get_current_org_id()
@@ -247,7 +274,7 @@ DECLARE
 BEGIN
     FOR tbl IN 
         SELECT unnest(ARRAY[
-            'clients', 'suppliers', 'categories', 'products', 'stock_transactions', 'projects', 'project_bom', 'quotations', 'amc_contracts', 'payment_receipts'
+            'clients', 'suppliers', 'categories', 'products', 'stock_transactions', 'projects', 'project_bom', 'quotations', 'amc_contracts', 'payment_receipts', 'tasks'
         ])
     LOOP
         EXECUTE format('

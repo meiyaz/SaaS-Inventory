@@ -9,6 +9,7 @@ BEGIN
 END $$;
 
 -- 2. Drop the tables (Cascade drops FKs/policies)
+DROP TABLE IF EXISTS public.tasks CASCADE;
 DROP TABLE IF EXISTS public.payment_receipts CASCADE;
 DROP TABLE IF EXISTS public.amc_contracts CASCADE;
 DROP TABLE IF EXISTS public.quotations CASCADE;
