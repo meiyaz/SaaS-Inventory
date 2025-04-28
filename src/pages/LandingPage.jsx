@@ -11,7 +11,7 @@ export const LandingPage = () => {
                     <div className="flex justify-between items-center h-16">
                         <div className="flex items-center">
                             <Shield className="h-8 w-8 text-blue-600 mr-2" />
-                            <span className="font-bold text-xl tracking-tight text-slate-900">Stock Sight</span>
+                            <span className="font-bold text-xl tracking-tight text-slate-900">SaaS Inventory</span>
                         </div>
                         <div className="flex items-center space-x-4">
                             <a href="#features" className="text-slate-600 hover:text-blue-600 px-3 py-2 text-sm font-medium transition">Features</a>
@@ -96,10 +96,10 @@ export const LandingPage = () => {
                     <div className="flex justify-between items-center">
                         <div className="flex items-center">
                             <Shield className="h-6 w-6 text-blue-500 mr-2" />
-                            <span className="font-bold text-lg">Stock Sight</span>
+                            <span className="font-bold text-lg">SaaS Inventory</span>
                         </div>
                         <div className="text-slate-400 text-sm">
-                            © 2024 Stock Sight Security Systems. All rights reserved.
+                            © 2024 SaaS Inventory. All rights reserved.
                         </div>
                     </div>
                 </div>

@@ -157,6 +157,62 @@ const Settings = () => {
                         </div>
                     )}
 
+                    {/* Role Permissions */}
+                    {tab === 'permissions' && (
+                        <div className="space-y-5">
+                            <h3 className="font-bold text-slate-800 text-base flex items-center">
+                                <Shield className="w-5 h-5 mr-2 text-blue-600" />
+                                Role Access Control
+                            </h3>
+                            <p className="text-xs text-slate-500 border-b border-slate-100 pb-4">
+                                Granularly configure which application modules are available to your operational teams. Admin roles have overriding access strictly mapped to all available endpoints.
+                            </p>
+
+                            {['MANAGER', 'TECHNICIAN'].map(roleType => (
+                                <div key={roleType} className="pt-2">
+                                    <h4 className="font-bold text-xs uppercase text-slate-700 tracking-wider mb-3 bg-slate-100 py-1.5 px-3 rounded-md border border-slate-200 inline-block">{roleType} ACCOUNTS</h4>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                                        {[
+                                            { key: 'dashboard', label: 'Dashboard' },
+                                            { key: 'projects', label: 'Projects CRM' },
+                                            { key: 'clients', label: 'Clients' },
+                                            { key: 'suppliers', label: 'Suppliers' },
+                                            { key: 'categories', label: 'Categories' },
+                                            { key: 'products', label: 'Products Master' },
+                                            { key: 'products_in', label: 'Stock Verify (In)' },
+                                            { key: 'products_out', label: 'Stock Issue (Out)' },
+                                            { key: 'products_logs', label: 'Stock Tracking Logs' },
+                                            { key: 'tasks', label: 'Operational Tasks' },
+                                            { key: 'amc', label: 'AMC Contracts' },
+                                            { key: 'billing', label: 'Billing & Quotations' },
+                                            { key: 'reports', label: 'Analytics Reports' }
+                                        ].map(mod => (
+                                            <div key={mod.key}
+                                                onClick={() => togglePermission(roleType, mod.key)}
+                                                className={`p-3 rounded-xl border flex items-center cursor-pointer transition-all ${(roleSettings[roleType] || []).includes(mod.key)
+                                                        ? 'bg-blue-50/50 border-blue-200 opacity-100 shadow-sm'
+                                                        : 'bg-white border-slate-200 opacity-60 hover:opacity-100'
+                                                    }`}>
+                                                <div className={`w-4 h-4 rounded shadow-sm border mr-2.5 flex items-center justify-center transition-colors ${(roleSettings[roleType] || []).includes(mod.key)
+                                                        ? 'bg-blue-600 border-blue-600'
+                                                        : 'bg-white border-slate-300'
+                                                    }`}>
+                                                    {(roleSettings[roleType] || []).includes(mod.key) && <CheckCircle2 className="w-3 h-3 text-white" />}
+                                                </div>
+                                                <span className={`text-xs font-semibold ${(roleSettings[roleType] || []).includes(mod.key) ? 'text-blue-800' : 'text-slate-600'
+                                                    }`}>{mod.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+
+                            <button onClick={handleSavePermissions} className="inline-flex items-center px-5 py-2.5 mt-2 bg-slate-900 text-white shadow-sm rounded-lg text-sm font-semibold hover:bg-black transition-colors">
+                                <Save className="w-4 h-4 mr-1.5" /> Commit Access Policies
+                            </button>
+                        </div>
+                    )}
+
                     {/* Company Profile */}
                     {tab === 'company' && (
                         <div className="space-y-5">

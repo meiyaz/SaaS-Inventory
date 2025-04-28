@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -10,6 +10,7 @@ import {
     Settings,
     LogOut,
     Menu,
+    X,
     Truck,
     Tags,
     ArrowDownToLine,
@@ -18,20 +19,19 @@ import {
     FolderKanban,
     ShieldCheck,
     BarChart3,
-    CheckSquare // Added CheckSquare icon
+    CheckSquare
 } from 'lucide-react';
 
-const Sidebar = () => {
+const SidebarContent = ({ onClose }) => {
     const navigate = useNavigate();
-    const location = useLocation(); // Added useLocation
-    const { user, permissions, role, logout } = useAuth(); // Added permissions
+    const location = useLocation();
+    const { user, permissions, role, logout } = useAuth();
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
     };
 
-    // New navigation structure with sections and permission roles
     const navigation = [
         {
             title: 'Main',
@@ -43,25 +43,25 @@ const Sidebar = () => {
             ]
         },
         {
-            title: 'Inventory Management',
+            title: 'Inventory',
             items: [
                 { name: 'Categories', icon: Tags, path: '/categories', role: 'categories' },
                 { name: 'Products', icon: Package, path: '/products', role: 'products' },
-                { name: 'Stock Inward', icon: ArrowDownToLine, path: '/products/in', role: 'products_in' },
-                { name: 'Stock Outward', icon: ArrowUpRight, path: '/products/out', role: 'products_out' },
+                { name: 'Stock In', icon: ArrowDownToLine, path: '/products/in', role: 'products_in' },
+                { name: 'Stock Out', icon: ArrowUpRight, path: '/products/out', role: 'products_out' },
                 { name: 'Stock Logs', icon: History, path: '/products/logs', role: 'products_logs' },
             ]
         },
         {
             title: 'Operations & Service',
             items: [
-                { name: 'Tasks', icon: CheckSquare, path: '/tasks', role: 'tasks' }, // Added Tasks module
+                { name: 'Tasks', icon: CheckSquare, path: '/tasks', role: 'tasks' },
                 { name: 'AMC Tracker', icon: ShieldCheck, path: '/amc', role: 'amc' },
                 { name: 'Billing', icon: FileText, path: '/billing', role: 'billing' },
             ]
         },
         {
-            title: 'Analytics & Admin',
+            title: 'Admin',
             items: [
                 { name: 'Reports', icon: BarChart3, path: '/reports', role: 'reports' },
                 { name: 'Settings', icon: Settings, path: '/settings', role: 'settings' }
@@ -69,28 +69,31 @@ const Sidebar = () => {
         }
     ];
 
-    // Removed old navItems and filtering logic
-
     return (
-        <div className="w-64 bg-slate-900 text-white flex flex-col h-screen transition-all duration-300">
-            <div className="p-6 flex items-center justify-center border-b border-slate-800 shrink-0">
-                <h1 className="text-xl font-bold tracking-wider text-blue-400">SAAS INVENTORY</h1>
+        <div className="w-64 bg-slate-900 flex flex-col h-full text-slate-300">
+            <div className="p-5 flex items-center justify-between border-b border-slate-800 shrink-0">
+                <h1 className="text-lg font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">SAAS INVENTORY</h1>
+                {onClose && (
+                    <button onClick={onClose} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition lg:hidden">
+                        <X className="w-5 h-5" />
+                    </button>
+                )}
             </div>
 
-            <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2">
+            <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1 custom-scrollbar">
                 {navigation.map((section, idx) => {
                     const visibleItems = section.items.filter(item => {
-                        if (role === 'ADMIN') return true; // Admin sees everything
-                        if (!item.role) return true; // Items without a specific role are visible to all authenticated users
-                        return permissions?.includes(item.role); // Check if user has the required permission
+                        if (role === 'ADMIN') return true;
+                        if (!item.role) return true;
+                        return permissions?.includes(item.role);
                     });
 
-                    if (visibleItems.length === 0) return null; // Don't render section if no items are visible
+                    if (visibleItems.length === 0) return null;
 
                     return (
-                        <div key={idx}>
+                        <div key={idx} className="mb-4">
                             {section.title && (
-                                <h4 className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-4">
+                                <h4 className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 mt-3">
                                     {section.title}
                                 </h4>
                             )}
@@ -102,15 +105,16 @@ const Sidebar = () => {
                                         <NavLink
                                             key={item.name}
                                             to={item.path}
-                                            className={`flex items - center py - 2.5 rounded - lg transition - colors px - 4
+                                            onClick={onClose}
+                                            className={`flex items-center py-2.5 px-3 rounded-lg transition-all text-sm font-medium
                                                 ${isActive
-                                                    ? 'bg-blue-600/90 text-white shadow-sm'
-                                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                                                } `
+                                                    ? 'bg-blue-600/10 text-blue-400 font-bold'
+                                                    : 'hover:bg-slate-800 hover:text-white'
+                                                }`
                                             }
                                         >
-                                            <Icon className="w-5 h-5 mr-3" />
-                                            <span className="font-medium">{item.name}</span>
+                                            <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-blue-500' : 'opacity-70'}`} />
+                                            {item.name}
                                         </NavLink>
                                     );
                                 })}
@@ -120,24 +124,20 @@ const Sidebar = () => {
                 })}
             </nav>
 
-            <div className="p-4 border-t border-slate-800 bg-slate-900 shrink-0">
-                <div className="flex items-center px-3 py-3 mb-3 rounded-xl bg-slate-800/80 border border-slate-700/50 shadow-inner group transition-all hover:bg-slate-800 hover:border-slate-700 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-lg text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] shrink-0 relative z-10 border border-slate-700/50">
+            <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-900/50">
+                <div className="flex items-center px-3 py-2.5 mb-3 rounded-xl bg-slate-800/40 border border-slate-700/30 overflow-hidden">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm text-white shrink-0">
                         {user?.email?.charAt(0).toUpperCase() || 'U'}
                     </div>
-                    <div className="flex-1 overflow-hidden ml-3 relative z-10">
-                        <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-white truncate capitalize pr-2">
-                                {user?.email?.split('@')[0].replace(/[._]/g, ' ') || 'User Account'}
-                            </p>
-                        </div>
-                        <div className="flex items-center justify-between mt-1">
-                            <p className="text-[10px] text-slate-400 truncate max-w-[100px]">{user?.email || 'Loading...'}</p>
-                            <span className={`inline - flex items - center px - 1.5 py - 0.5 rounded text - [9px] uppercase font - bold tracking - wider border shrink - 0 ml - 2 ${role === 'ADMIN' ? 'bg-red-500/10 text-red-400 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.2)]' :
-                                    role === 'MANAGER' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]' :
-                                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
-                                } `}>
+                    <div className="flex-1 overflow-hidden ml-3">
+                        <p className="text-xs font-bold text-white truncate pr-2 capitalize">
+                            {user?.email?.split('@')[0].replace(/[._]/g, ' ') || 'User Account'}
+                        </p>
+                        <div className="flex items-center mt-0.5">
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider leading-none border ${role === 'ADMIN' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                                    role === 'MANAGER' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+                                        'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                }`}>
                                 {role || 'USER'}
                             </span>
                         </div>
@@ -145,9 +145,9 @@ const Sidebar = () => {
                 </div>
                 <button
                     onClick={handleLogout}
-                    className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-slate-300 rounded-xl hover:bg-red-500/10 border border-transparent hover:border-red-500/20 hover:text-red-400 transition-all group"
+                    className="w-full flex items-center justify-center px-4 py-2 text-xs font-semibold text-slate-400 rounded-lg hover:bg-slate-800 hover:text-rose-400 transition-colors"
                 >
-                    <LogOut className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
+                    <LogOut className="w-3.5 h-3.5 mr-2" />
                     Sign Out
                 </button>
             </div>
@@ -156,21 +156,37 @@ const Sidebar = () => {
 };
 
 export const DashboardLayout = () => {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
-            <Sidebar />
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-white border-b flex items-center px-6 justify-between shadow-sm z-10 shrink-0">
-                    <button className="p-2 mr-4 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden">
-                        <Menu className="h-6 w-6" />
-                    </button>
-                    <div className="flex-1"></div>
-                    <div className="flex items-center space-x-4">
-                        {/* Future top nav items like notifications */}
+        <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+            {/* Desktop Sidebar */}
+            <aside className="hidden lg:flex flex-col w-64 fixed inset-y-0 z-20 shadow-xl shadow-slate-900/20">
+                <SidebarContent />
+            </aside>
+
+            {/* Mobile Sidebar Overlay */}
+            {sidebarOpen && (
+                <div className="fixed inset-0 z-40 lg:hidden flex">
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setSidebarOpen(false)}></div>
+                    <div className="relative flex flex-col w-64 max-w-sm h-full shadow-2xl transform transition-transform duration-300 translate-x-0">
+                        <SidebarContent onClose={() => setSidebarOpen(false)} />
+                    </div>
+                </div>
+            )}
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col lg:pl-64 min-w-0 transition-all duration-300">
+                <header className="h-14 lg:h-16 bg-white border-b border-slate-200 flex items-center px-4 lg:px-8 justify-between z-10 shrink-0 sticky top-0">
+                    <div className="flex items-center">
+                        <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 mr-3 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 lg:hidden transition-colors">
+                            <Menu className="h-5 w-5" />
+                        </button>
+                        <h2 className="text-sm font-semibold text-slate-800 lg:hidden uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">SaaS Inventory</h2>
                     </div>
                 </header>
-                <main className="flex-1 overflow-y-auto p-6">
-                    <div className="max-w-7xl mx-auto">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 lg:p-8 w-full block">
+                    <div className="max-w-[1600px] mx-auto w-full">
                         <Outlet />
                     </div>
                 </main>

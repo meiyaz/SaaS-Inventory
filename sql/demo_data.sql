@@ -173,3 +173,34 @@ INSERT INTO public.payment_receipts (
   158900.00, '2024-10-15', 'Bank Transfer', 'UTR-HDFC-123456', '50% Advance against QT-2410-0001'
 ) ON CONFLICT (receipt_number) DO NOTHING;
 
+-- Inject fully mocked Operational Tasks demonstrating Manager/Technician flows
+INSERT INTO public.tasks (
+  organization_id, title, description, assigned_to, created_by, status, priority, due_date, comments
+) VALUES 
+(
+  '99999999-0000-0000-0000-000000000001', 
+  'Site Survey: TechPark Phase 2', 
+  'Complete the structural measurements and mark drop points for 12 cameras at the east wing.', 
+  '00000000-0000-0000-0000-000000000003', -- assigned to Technician
+  '00000000-0000-0000-0000-000000000002', -- created by Manager
+  'PENDING', 'HIGH', CURRENT_DATE + interval '2 days',
+  '[{"text": "Waiting for site access pass approval before heading out.", "author": "technician@company.com", "timestamp": "2024-10-18T09:00:00Z"}]'::jsonb
+),
+(
+  '99999999-0000-0000-0000-000000000001', 
+  'Routine Maintenance: City Hospital', 
+  'Clean camera lenses, check NVR recording playback, and verify UPS battery health.', 
+  '00000000-0000-0000-0000-000000000003', -- assigned to Technician
+  '00000000-0000-0000-0000-000000000001', -- created by Admin
+  'IN_PROGRESS', 'MEDIUM', CURRENT_DATE,
+  '[{"text": "Reached hospital, starting with outdoor dome cameras.", "author": "technician@company.com", "timestamp": "2024-10-19T10:15:00Z"}]'::jsonb
+),
+(
+  '99999999-0000-0000-0000-000000000001', 
+  'Firmware Upgrade: Retail Branch Network', 
+  'Push latest stable firmware to all Dahua NVR units in the north zone to patch security exploit.', 
+  '00000000-0000-0000-0000-000000000002', -- assigned to Manager
+  '00000000-0000-0000-0000-000000000001', -- created by Admin
+  'BLOCKED', 'HIGH', CURRENT_DATE + interval '5 days',
+  '[{"text": "Awaiting custom firmware binary from OEM support.", "author": "manager@company.com", "timestamp": "2024-10-15T14:30:00Z"}]'::jsonb
+);
