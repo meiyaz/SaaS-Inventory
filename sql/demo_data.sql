@@ -3,204 +3,233 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DO $$
 DECLARE
-  admin_uid UUID := '00000000-0000-0000-0000-000000000001';
-  manager_uid UUID := '00000000-0000-0000-0000-000000000002';
-  tech_uid UUID := '00000000-0000-0000-0000-000000000003';
+  org1_id UUID := '99999999-0000-0000-0000-000000000001';
+  org2_id UUID := '99999999-0000-0000-0000-000000000002';
+
+  cctv_admin UUID   := '00000000-0000-0000-0000-000000000001';
+  cctv_manager UUID := '00000000-0000-0000-0000-000000000002';
+  cctv_tech UUID    := '00000000-0000-0000-0000-000000000003';
+
+  moto_admin UUID   := '00000000-0000-0000-0000-000000000011';
+  moto_manager UUID := '00000000-0000-0000-0000-000000000012';
+  moto_tech UUID    := '00000000-0000-0000-0000-000000000013';
+
 BEGIN
 
-  INSERT INTO public.organizations (id, name, billing_email, subscription_tier) 
-  VALUES ('99999999-0000-0000-0000-000000000001', 'SaaS Inventory Demo HQ', 'admin@company.com', 'PRO')
+  INSERT INTO public.organizations (id, name, billing_email, subscription_tier, gst_number, website) 
+  VALUES 
+    (org1_id, 'CCTV Sales & Installation', 'admin@cctv.com', 'PRO', '27AABCU9603R1Z2', 'https://www.cctvsales.com'),
+    (org2_id, 'Moto Spare Parts & Repair', 'admin@motors.com', 'PRO', '29BBBCU1234S1Z8', 'https://www.motoparts.com')
   ON CONFLICT (id) DO NOTHING;
 
-  DELETE FROM auth.users WHERE email IN ('admin@company.com', 'manager@company.com', 'technician@company.com');
+  DELETE FROM auth.users WHERE email IN (
+    'admin@cctv.com', 'manager@cctv.com', 'technician@cctv.com',
+    'admin@motors.com', 'manager@motors.com', 'technician@motors.com'
+  );
 
   INSERT INTO auth.users (
-    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, 
-    last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, 
-    created_at, updated_at, phone, phone_confirmed_at, confirmation_token, 
-    recovery_token, email_change_token_new, email_change
-  ) VALUES (
-    admin_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@company.com', 
-    crypt('123456', gen_salt('bf')), now(), now(), 
-    '{"provider":"email","providers":["email"]}', '{"email":"admin@company.com"}', false,
-    now(), now(), NULL, NULL, '', '', '', ''
-  );
-    
-  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-  VALUES (gen_random_uuid(), admin_uid::text, admin_uid, format('{"sub": "%s", "email": "%s", "email_verified": true, "phone_verified": false}', admin_uid::text, 'admin@company.com')::jsonb, 'email', now(), now(), now());
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at,
+    phone, phone_confirmed_at, confirmation_token, recovery_token, email_change_token_new, email_change
+  ) 
+  VALUES 
+    (cctv_admin, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@cctv.com', crypt('123456', gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"email":"admin@cctv.com"}', false, now(), now(), NULL, NULL, '', '', '', ''),
+    (cctv_manager, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@cctv.com', crypt('123456', gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"email":"manager@cctv.com"}', false, now(), now(), NULL, NULL, '', '', '', ''),
+    (cctv_tech, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'technician@cctv.com', crypt('123456', gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"email":"technician@cctv.com"}', false, now(), now(), NULL, NULL, '', '', '', '')
+  ON CONFLICT (id) DO UPDATE SET 
+    email = EXCLUDED.email, 
+    encrypted_password = EXCLUDED.encrypted_password, 
+    raw_user_meta_data = EXCLUDED.raw_user_meta_data;
 
-  INSERT INTO public.organization_members (organization_id, user_id, role) VALUES ('99999999-0000-0000-0000-000000000001', admin_uid, 'ADMIN') ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'ADMIN';
+  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES 
+    (gen_random_uuid(), cctv_admin::text, cctv_admin, format('{"sub": "%s", "email": "%s", "email_verified": true}', cctv_admin::text, 'admin@cctv.com')::jsonb, 'email', now(), now(), now()),
+    (gen_random_uuid(), cctv_manager::text, cctv_manager, format('{"sub": "%s", "email": "%s", "email_verified": true}', cctv_manager::text, 'manager@cctv.com')::jsonb, 'email', now(), now(), now()),
+    (gen_random_uuid(), cctv_tech::text, cctv_tech, format('{"sub": "%s", "email": "%s", "email_verified": true}', cctv_tech::text, 'technician@cctv.com')::jsonb, 'email', now(), now(), now())
+  ON CONFLICT (provider_id, provider) DO UPDATE SET identity_data = EXCLUDED.identity_data;
 
-  INSERT INTO auth.users (
-    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, 
-    last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, 
-    created_at, updated_at, phone, phone_confirmed_at, confirmation_token, 
-    recovery_token, email_change_token_new, email_change
-  ) VALUES (
-    manager_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@company.com', 
-    crypt('123456', gen_salt('bf')), now(), now(), 
-    '{"provider":"email","providers":["email"]}', '{"email":"manager@company.com"}', false,
-    now(), now(), NULL, NULL, '', '', '', ''
-  );
-    
-  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-  VALUES (gen_random_uuid(), manager_uid::text, manager_uid, format('{"sub": "%s", "email": "%s", "email_verified": true, "phone_verified": false}', manager_uid::text, 'manager@company.com')::jsonb, 'email', now(), now(), now());
+  INSERT INTO public.users (id, email, raw_user_meta_data) VALUES
+    (cctv_admin, 'admin@cctv.com', '{"email":"admin@cctv.com"}'),
+    (cctv_manager, 'manager@cctv.com', '{"email":"manager@cctv.com"}'),
+    (cctv_tech, 'technician@cctv.com', '{"email":"technician@cctv.com"}')
+  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, raw_user_meta_data = EXCLUDED.raw_user_meta_data;
 
-  INSERT INTO public.organization_members (organization_id, user_id, role) VALUES ('99999999-0000-0000-0000-000000000001', manager_uid, 'MANAGER') ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'MANAGER';
+  INSERT INTO public.organization_members (organization_id, user_id, role) VALUES 
+    (org1_id, cctv_admin, 'ADMIN'),
+    (org1_id, cctv_manager, 'MANAGER'),
+    (org1_id, cctv_tech, 'TECHNICIAN')
+  ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role;
+
 
   INSERT INTO auth.users (
-    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, 
-    last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, 
-    created_at, updated_at, phone, phone_confirmed_at, confirmation_token, 
-    recovery_token, email_change_token_new, email_change
-  ) VALUES (
-    tech_uid, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'technician@company.com', 
-    crypt('123456', gen_salt('bf')), now(), now(), 
-    '{"provider":"email","providers":["email"]}', '{"email":"technician@company.com"}', false,
-    now(), now(), NULL, NULL, '', '', '', ''
-  );
-    
-  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
-  VALUES (gen_random_uuid(), tech_uid::text, tech_uid, format('{"sub": "%s", "email": "%s", "email_verified": true, "phone_verified": false}', tech_uid::text, 'technician@company.com')::jsonb, 'email', now(), now(), now());
+    id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at,
+    phone, phone_confirmed_at, confirmation_token, recovery_token, email_change_token_new, email_change
+  ) 
+  VALUES 
+    (moto_admin, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'admin@motors.com', crypt('123456', gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"email":"admin@motors.com"}', false, now(), now(), NULL, NULL, '', '', '', ''),
+    (moto_manager, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'manager@motors.com', crypt('123456', gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"email":"manager@motors.com"}', false, now(), now(), NULL, NULL, '', '', '', ''),
+    (moto_tech, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'technician@motors.com', crypt('123456', gen_salt('bf')), now(), now(), '{"provider":"email","providers":["email"]}', '{"email":"technician@motors.com"}', false, now(), now(), NULL, NULL, '', '', '', '')
+  ON CONFLICT (id) DO UPDATE SET 
+    email = EXCLUDED.email, 
+    encrypted_password = EXCLUDED.encrypted_password, 
+    raw_user_meta_data = EXCLUDED.raw_user_meta_data;
 
-  INSERT INTO public.organization_members (organization_id, user_id, role) VALUES ('99999999-0000-0000-0000-000000000001', tech_uid, 'TECHNICIAN') ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'TECHNICIAN';
+  INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at) VALUES 
+    (gen_random_uuid(), moto_admin::text, moto_admin, format('{"sub": "%s", "email": "%s", "email_verified": true}', moto_admin::text, 'admin@motors.com')::jsonb, 'email', now(), now(), now()),
+    (gen_random_uuid(), moto_manager::text, moto_manager, format('{"sub": "%s", "email": "%s", "email_verified": true}', moto_manager::text, 'manager@motors.com')::jsonb, 'email', now(), now(), now()),
+    (gen_random_uuid(), moto_tech::text, moto_tech, format('{"sub": "%s", "email": "%s", "email_verified": true}', moto_tech::text, 'technician@motors.com')::jsonb, 'email', now(), now(), now())
+  ON CONFLICT (provider_id, provider) DO UPDATE SET identity_data = EXCLUDED.identity_data;
+
+  INSERT INTO public.users (id, email, raw_user_meta_data) VALUES
+    (moto_admin, 'admin@motors.com', '{"email":"admin@motors.com"}'),
+    (moto_manager, 'manager@motors.com', '{"email":"manager@motors.com"}'),
+    (moto_tech, 'technician@motors.com', '{"email":"technician@motors.com"}')
+  ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, raw_user_meta_data = EXCLUDED.raw_user_meta_data;
+
+  INSERT INTO public.organization_members (organization_id, user_id, role) VALUES 
+    (org2_id, moto_admin, 'ADMIN'),
+    (org2_id, moto_manager, 'MANAGER'),
+    (org2_id, moto_tech, 'TECHNICIAN')
+  ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role;
+
 END $$;
 
 
-INSERT INTO public.clients (organization_id, id, name, company_name, email, phone, address, gst_number) VALUES
-  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 'Rajesh Sharma',   'Tata Motors Ltd.',          'rajesh@tatamotors.com',   '+91-98201-11001', '1 Tata Lane, MIDC, Pune, Maharashtra',            '27AABCT3518Q1ZJ'),
-  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', 'Meena Pillai',    'InfoEdge India Pvt. Ltd.',  'meena@infoedge.in',       '+91-98201-11002', 'D-28, Sector 3, Noida, Uttar Pradesh 201301',     '09AAACI5754H1ZR'),
-  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003', 'Suresh Nair',     'Reliance Retail Ltd.',      'suresh.nair@jiomart.com', '+91-98201-11003', 'Maker Chambers IV, BKC, Mumbai, Maharashtra',     '27AAACR5055K1Z5'),
-  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000004', 'Anjali Kapoor',   'HDFC Bank Limited',         'anjali.k@hdfcbank.com',   '+91-98201-11004', 'HDFC House, Lower Parel, Mumbai, Maharashtra',    '27AACCH0001A1ZH'),
-  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000005', 'Vikram Mehta',    'BJP Office - Maharashtra',  'vmehta@mls.org.in',       '+91-98201-11005', 'Plot 12, Nariman Point, Mumbai, Maharashtra',     NULL)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO public.suppliers (organization_id, id, company_name, contact_person, email, phone, address, gst_number, categories, payment_terms) VALUES
-  ('99999999-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000001', 'CP Plus India Pvt. Ltd.',    'Pankaj Dubey',    'pankaj@cpplus.in',        '+91-95001-22001', 'Plot A4, Udyog Nagar, Delhi',       '07AABCC7698N1Z2', 'Cameras, NVR, DVR',       'Net 30'),
-  ('99999999-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000002', 'Hikvision India Pvt. Ltd.',  'Srinivas Rao',    'srao@hikvision.com',      '+91-95001-22002', 'Baner Road, Pune, Maharashtra',     '27AACCH1234B1Z5', 'Cameras, NVR, Accessories','Net 15'),
-  ('99999999-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000003', 'Dahua Technology India',     'Deepak Thakur',   'dthakur@dahuasecurity.in','+91-95001-22003', 'Saket Dist. Centre, New Delhi',    '07AABCD9876C1ZK', 'Cameras, NVR, DVR',       'Advance'),
-  ('99999999-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000004', 'Ravi Cable Industries',      'Harish Goel',     'harish@ravicables.com',   '+91-95001-22004', 'GIDC Estate, Surat, Gujarat',      '24AABCR1122D1Z3', 'Cables, Accessories',     'Net 45')
+INSERT INTO public.clients (organization_id, id, name, company_name, email, phone) VALUES
+  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 'Rajesh Sharma', 'SecureTech Ltd', 'rajesh@securetech.com', '+91-98201-11001'),
+  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000002', 'Meena Pillai',  'City Hospital HQ', 'meena@hospital.in', '+91-98201-11002'),
+  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000003', 'Anita Desai', 'Global School Branch', 'admin@globalschool.edu', '+91-98201-22003'),
+  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000004', 'Vikram Singh', 'Tech Park Alpha', 'vsingh@techpark.com', '+91-98201-22004'),
+  ('99999999-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000005', 'Kavita Reddy', 'Reddy Jewellers', 'security@reddyjewels.com', '+91-98201-22005')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.categories (organization_id, id, name, description) VALUES
-  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000001', 'IP Cameras',         'Network-based PoE surveillance cameras'),
-  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000002', 'Analog Cameras',     'Traditional CVBS/TVI/AHD cameras'),
-  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000003', 'NVR / DVR',          'Network and Digital Video Recorders'),
-  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000004', 'Cables & Conduits',  'Co-axial, Cat6, power and conduit wiring'),
-  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000005', 'Accessories',        'Mounts, JBs, switches, power supplies')
+  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000001', 'IP Cameras', 'Network-based PoE cameras'),
+  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000002', 'Cables', 'Networking cables'),
+  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000003', 'Storage NVR', 'Network Video Recorders and HDDs'),
+  ('99999999-0000-0000-0000-000000000001', '33333333-0000-0000-0000-000000000004', 'Access Control', 'Biometrics and Maglocks')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.products (organization_id, id, sku, name, brand, category_id, supplier_id, description, base_price, selling_price, tax_rate, unit, min_stock_alert, current_stock) VALUES
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 'CAM-HIK-2MP-DOM', 'Hikvision 2MP Dome Camera',      'Hikvision', '33333333-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000002', 'DS-2CD1123G2I, 2.8mm, H.265+, IR 30m, PoE, IP67',        2200.00,  3500.00, 18, 'Pieces', 5,  42),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000002', 'CAM-HIK-5MP-BUL', 'Hikvision 5MP Bullet Camera',    'Hikvision', '33333333-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000002', 'DS-2CD2055G1-I, 4mm, H.265+, IR 50m, PoE, IP67, WDR 120dB', 3800.00,  6200.00, 18, 'Pieces', 5,  28),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000003', 'CAM-CPP-2MP-PTZ', 'CP Plus 2MP PTZ Camera',         'CP Plus',   '33333333-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000001', 'CP-UNP-2301L3-D, 23x Optical Zoom, IR 100m, PoE',        12500.00, 19000.00, 18, 'Pieces', 2,  8 ),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000004', 'CAM-DAH-4MP-TUR', 'Dahua 4MP Turret Camera (WizSense)', 'Dahua', '33333333-0000-0000-0000-000000000001', '22222222-0000-0000-0000-000000000003', 'IPC-HDW2849H-S-IL, 2.8mm, Full-Color, SMD+, H.265+',     3200.00,  5100.00, 18, 'Pieces', 5,  15),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000005', 'NVR-HIK-8CH-4K',  'Hikvision 8CH 4K NVR',           'Hikvision', '33333333-0000-0000-0000-000000000003', '22222222-0000-0000-0000-000000000002', 'DS-7608NXI-K2, 8CH, 4K, H.265+, 2 SATA, PoE Out 8CH',   7500.00, 11500.00, 18, 'Pieces', 2,  12),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000006', 'NVR-CPP-16CH',    'CP Plus 16CH NVR',               'CP Plus',   '33333333-0000-0000-0000-000000000003', '22222222-0000-0000-0000-000000000001', 'CP-UVR-1601K2-I2, 16CH, H.265+, 2 SATA',                 9000.00, 14500.00, 18, 'Pieces', 2,  6 ),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000007', 'HDD-SEA-4TB',     'Seagate SkyHawk 4TB HDD',        'Seagate',   '33333333-0000-0000-0000-000000000005', NULL,                                   '4TB, 5400 RPM, SATA 6Gb/s, Surveillance Optimised',        4800.00,  7200.00, 18, 'Pieces', 4,  20),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000008', 'CAB-COAX-RG6-100','RG6 Coaxial Cable (100m Roll)',   'Finolex',   '33333333-0000-0000-0000-000000000004', '22222222-0000-0000-0000-000000000004', 'RG6/U with power, 100m, White',                            900.00,  1500.00, 18, 'Roll',   3,  35),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000009', 'CAB-CAT6-300',    'Cat6 Ethernet Cable (300m Reel)', 'Polycab',   '33333333-0000-0000-0000-000000000004', '22222222-0000-0000-0000-000000000004', 'Cat 6 UTP, 0.58mm Copper, 300m Reel',                     2800.00,  4500.00, 18, 'Reel',   2,  10),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000010', 'ACC-POE-8P',      '8-Port PoE Switch (60W)',         'D-Link',    '33333333-0000-0000-0000-000000000005', NULL,                                   'DGS-F1010P-E, 8x PoE 802.3at, 2x Uplink, 60W Total',      2200.00,  3800.00, 18, 'Pieces', 3,  18)
+INSERT INTO public.products (organization_id, id, sku, name, brand, category_id, description, base_price, selling_price, tax_rate, unit, min_stock_alert, current_stock) VALUES
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 'CAM-HIK-2MP', 'Hikvision 2MP Dome', 'Hikvision', '33333333-0000-0000-0000-000000000001', 'IP Dome Camera IP67', 2200.00, 3500.00, 18, 'Pieces', 5, 20),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000002', 'CAB-CAT6-3', 'Cat6 Cable 300m', 'Polycab', '33333333-0000-0000-0000-000000000002', 'Ethernet Roll', 2500.00, 3800.00, 18, 'Reel', 2, 5),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000003', 'NVR-DAH-16CH', 'Dahua 16-Ch NVR', 'Dahua', '33333333-0000-0000-0000-000000000003', '16 Channel 4K NVR', 8500.00, 12000.00, 18, 'Pieces', 2, 8),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000004', 'HDD-WD-4TB', 'WD Purple 4TB', 'Western Digital', '33333333-0000-0000-0000-000000000003', 'Surveillance Hard Drive', 7500.00, 9500.00, 18, 'Pieces', 3, 14),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000005', 'BIO-ESSL-K9', 'eSSL K9 Biometric', 'eSSL', '33333333-0000-0000-0000-000000000004', 'Fingerprint & RFID Attendance', 4000.00, 6000.00, 18, 'Pieces', 5, 12)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.stock_transactions (organization_id, product_id, transaction_type, quantity, unit_cost, reference_no, notes, user_email) VALUES
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 'IN', 50, 2200.00, 'PO-2024-001', 'Initial stock from Hikvision distributor', 'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000002', 'IN', 30, 3800.00, 'PO-2024-001', 'Initial stock from Hikvision distributor', 'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000003', 'IN', 10, 12500.00,'PO-2024-002', 'CP Plus PTZ cameras batch 1',               'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000004', 'IN', 20, 3200.00, 'PO-2024-003', 'Dahua WizSense batch from Dahua India',     'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000005', 'IN', 15, 7500.00, 'PO-2024-001', 'NVR batch from Hikvision distributor',      'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000006', 'IN', 8,  9000.00, 'PO-2024-002', 'CP Plus 16CH NVR stock',                    'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000007', 'IN', 25, 4800.00, 'PO-2024-004', 'Seagate SkyHawk HDDs - batch 1',            'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000008', 'IN', 40, 900.00,  'PO-2024-005', 'RG6 cable rolls from Ravi Cables',          'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000009', 'IN', 12, 2800.00, 'PO-2024-005', 'Cat6 reels from Ravi Cables',               'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000010', 'IN', 20, 2200.00, 'PO-2024-006', 'D-Link PoE switches batch',                 'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 'OUT', 8,  3500.00, 'PRJ-TATA-01', 'Tata Motors Pune factory installation',    'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000002', 'OUT', 2,  6200.00, 'PRJ-TATA-01', 'Tata Motors - perimeter coverage',         'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000005', 'OUT', 3,  11500.00,'PRJ-TATA-01', 'Tata Motors - 3x 8CH NVR units',           'admin@cctv.com'),
-  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000007', 'OUT', 5,  7200.00, 'PRJ-TATA-01', 'Tata Motors - 4TB HDD per NVR',            'admin@cctv.com');
+INSERT INTO public.stock_transactions (organization_id, product_id, transaction_type, quantity, unit_cost, notes, user_email) VALUES
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 'IN', 20, 2200.00, 'Initial Stock', 'admin@cctv.com'),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000002', 'IN', 5, 2500.00, 'Initial Stock', 'admin@cctv.com'),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000003', 'IN', 8, 8500.00, 'Batch 1 Delivery', 'admin@cctv.com'),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000004', 'IN', 14, 7500.00, 'Bulk HDD Order', 'admin@cctv.com'),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000005', 'IN', 12, 4000.00, 'Restock', 'manager@cctv.com'),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 'OUT', 4, null, 'Sent to Hospital Site', 'technician@cctv.com'),
+  ('99999999-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000004', 'OUT', 2, null, 'Used for Reddy Jewellers upgrade', 'technician@cctv.com');
 
-INSERT INTO public.projects (organization_id, id, title, project_code, client_id, status, project_manager, start_date, end_date, contract_value, site_address, scope_notes) VALUES
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', 'Tata Motors Pune Factory - Shop Floor CCTV', 'PRJ-TATA-01', '11111111-0000-0000-0000-000000000001', 'INSTALLING', 'Kavya Menon', '2024-10-01', '2024-11-30', 385000.00, 'MIDC Bhosari, Survey No 1, Pune, Maharashtra 411026', '42 IP cameras (mix of dome and bullet), 3x 8CH NVRs, server room integration, access point coverage of main floor and perimeter. 300m of Cat6 + power.'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', 'InfoEdge Noida Corporate Office',            'PRJ-INFO-01', '11111111-0000-0000-0000-000000000002', 'QUOTED',     'Rajan Tiwari', '2024-11-15', '2024-12-31', 220000.00, 'D-28, Sector 3, Noida, UP 201301',                                 '22 Dome cameras across 4 floors, 2x 16CH NVR, ANPR camera for parking exit, biometric integration pending.'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000003', 'Reliance Retail Nagpur Outlet',              'PRJ-REL-01',  '11111111-0000-0000-0000-000000000003', 'COMPLETED',  'Kavya Menon', '2024-08-01', '2024-09-15', 145000.00, 'Empress City Mall, Nagpur, Maharashtra',                           '18 IP cameras, 1x 16CH NVR, 4TB HDD, 200m RG6, basic installation. Handover done.'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000004', 'HDFC Bank Branch - Andheri CCTV Refresh',   'PRJ-HDFC-01', '11111111-0000-0000-0000-000000000004', 'SURVEY',     'Rajan Tiwari', '2024-12-01', NULL,          NULL,         '42 Andheri West Branch, Mumbai, Maharashtra',                  'Client wants full replacement of analog system with IP. Site survey in progress. Potential 30+ camera project.'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000005', 'Maharashtra BJP Office - Nariman Point',    'PRJ-BJP-01',  '11111111-0000-0000-0000-000000000005', 'LEAD',       NULL,           NULL,         NULL,          NULL,         'Nariman Point, Mumbai, Maharashtra',                           'Initial inquiry via referral. Need to survey 3 floors, parking, and entrance area.')
+INSERT INTO public.suppliers (organization_id, id, company_name, contact_person, email, phone) VALUES 
+  ('99999999-0000-0000-0000-000000000001', '88888888-0000-0000-0000-000000000001', 'Hikvision Core Distributors', 'Amit', 'sales@hikvision-core.com', '+91-98765-00001'),
+  ('99999999-0000-0000-0000-000000000001', '88888888-0000-0000-0000-000000000002', 'Global Cables India', 'Vikas', 'orders@globalcables.com', '+91-98765-00002')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.project_bom (organization_id, project_id, product_id, quantity, unit_sell_price, notes) VALUES
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000001', 30, 3500.00, 'Shop floor dome cameras'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000002', 12, 6200.00, 'Parking and perimeter bullet cameras'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000005', 3,  11500.00,'1 NVR per zone'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000007', 3,  7200.00, '4TB SkyHawk per NVR'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000009', 2,  4500.00, '2x 300m Cat6 reels'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', '44444444-0000-0000-0000-000000000010', 4,  3800.00, '4x 8-port PoE switches'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000001', 22, 3500.00, 'Dome cameras - all 4 floors'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000006', 2,  14500.00,'2x 16CH NVRs'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000007', 2,  7200.00, '4TB per NVR'),
-  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000009', 1,  4500.00, '1x Cat6 300m reel');
+INSERT INTO public.projects (organization_id, id, title, project_code, client_id, status, start_date) VALUES 
+  ('99999999-0000-0000-0000-000000000001', '77777777-0000-0000-0000-000000000001', 'Hospital Security Overhaul', 'PRJ-2024-001', '11111111-0000-0000-0000-000000000001', 'INSTALLING', CURRENT_DATE - interval '5 days'),
+  ('99999999-0000-0000-0000-000000000001', '77777777-0000-0000-0000-000000000002', 'Reddy Jewellers Display Upgrade', 'PRJ-2024-002', '11111111-0000-0000-0000-000000000005', 'WON', CURRENT_DATE)
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.quotations (
-  organization_id, id, quote_number, project_id, status, valid_until,
-  bom_sell_value, cabling_cost, labor_cost, other_cost,
-  discount_pct, discount_amt, subtotal_after_discount,
-  gst_rate, gst_amt, grand_total,
-  terms_and_conditions, notes
-) VALUES (
-  '99999999-0000-0000-0000-000000000001', '66666666-0000-0000-0000-000000000001', 'QT-2410-0001', '55555555-0000-0000-0000-000000000001', 'ACCEPTED', '2024-10-31',
-  248000.00, 10500.00, 25000.00, 0.00,
-  5.00, 14175.00, 269325.00,
-  18.00, 48478.50, 317803.50,
-  '1. Valid for 30 days from date of issue.\n2. 50% advance payment required to confirm order.\n3. Balance due on project completion.\n4. 1 Year warranty on hardware, 90 Days on Labour.',
-  'Rate includes site cable pulling. 300m Cat6 and power wiring considered.'
-) ON CONFLICT (quote_number) DO UPDATE SET id = EXCLUDED.id;
+INSERT INTO public.quotations (organization_id, id, quote_number, project_id, client_id, status, grand_total, valid_until) VALUES 
+  ('99999999-0000-0000-0000-000000000001', '66666666-0000-0000-0000-000000000001', 'QT-2024-001', '77777777-0000-0000-0000-000000000001', '11111111-0000-0000-0000-000000000001', 'ACCEPTED', 150000.00, CURRENT_DATE + interval '10 days'),
+  ('99999999-0000-0000-0000-000000000001', '66666666-0000-0000-0000-000000000002', 'QT-2024-002', '77777777-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000005', 'ACCEPTED', 85000.00, CURRENT_DATE + interval '5 days')
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.amc_contracts (
-  organization_id, contract_number, client_id, start_date, end_date,
-  annual_value, status, coverage_details
-) VALUES (
-  '99999999-0000-0000-0000-000000000001', 'AMC-2024-001', '11111111-0000-0000-0000-000000000003', '2024-10-01', '2025-09-30',
-  25000.00, 'ACTIVE', 'Comprehensive AMC for 18 cameras and 1 NVR at Nagpur outlet. 4 preventive visits/year.'
-), (
-  '99999999-0000-0000-0000-000000000001', 'AMC-2024-002', '11111111-0000-0000-0000-000000000002', '2023-11-01', '2024-10-31',
-  35000.00, 'EXPIRED', 'Non-comprehensive AMC. Labour only for 22 cameras at Noida HQ.'
-) ON CONFLICT (contract_number) DO NOTHING;
+INSERT INTO public.invoices (organization_id, id, invoice_number, client_id, reference_type, reference_id, status, subtotal, tax_amt, grand_total, due_date) VALUES 
+  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', 'INV-2024-001', '11111111-0000-0000-0000-000000000001', 'PROJECT', '77777777-0000-0000-0000-000000000001', 'PARTIAL', 127118.64, 22881.36, 150000.00, CURRENT_DATE + interval '10 days'),
+  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', 'INV-2024-002', '11111111-0000-0000-0000-000000000005', 'PROJECT', '77777777-0000-0000-0000-000000000002', 'DRAFT', 72033.89, 12966.11, 85000.00, CURRENT_DATE + interval '5 days')
+ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO public.payment_receipts (
-  organization_id, receipt_number, quotation_id, amount, payment_date,
-  payment_mode, reference_no, notes
-) VALUES (
-  '99999999-0000-0000-0000-000000000001', 'REC-24-001', '66666666-0000-0000-0000-000000000001',
-  158900.00, '2024-10-15', 'Bank Transfer', 'UTR-HDFC-123456', '50% Advance against QT-2410-0001'
-) ON CONFLICT (receipt_number) DO NOTHING;
+INSERT INTO public.invoice_line_items (organization_id, invoice_id, description, quantity, unit_price, total_price) VALUES
+  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000001', 'Hospital Security Overhaul Project Phase 1', 1, 127118.64, 127118.64),
+  ('99999999-0000-0000-0000-000000000001', '55555555-0000-0000-0000-000000000002', 'Reddy Jewellers Display Cameras', 1, 72033.89, 72033.89);
 
--- Inject fully mocked Operational Tasks demonstrating Manager/Technician flows
-INSERT INTO public.tasks (
-  organization_id, title, description, assigned_to, created_by, status, priority, due_date, comments
-) VALUES 
-(
-  '99999999-0000-0000-0000-000000000001', 
-  'Site Survey: TechPark Phase 2', 
-  'Complete the structural measurements and mark drop points for 12 cameras at the east wing.', 
-  '00000000-0000-0000-0000-000000000003', -- assigned to Technician
-  '00000000-0000-0000-0000-000000000002', -- created by Manager
-  'PENDING', 'HIGH', CURRENT_DATE + interval '2 days',
-  '[{"text": "Waiting for site access pass approval before heading out.", "author": "technician@company.com", "timestamp": "2024-10-18T09:00:00Z"}]'::jsonb
-),
-(
-  '99999999-0000-0000-0000-000000000001', 
-  'Routine Maintenance: City Hospital', 
-  'Clean camera lenses, check NVR recording playback, and verify UPS battery health.', 
-  '00000000-0000-0000-0000-000000000003', -- assigned to Technician
-  '00000000-0000-0000-0000-000000000001', -- created by Admin
-  'IN_PROGRESS', 'MEDIUM', CURRENT_DATE,
-  '[{"text": "Reached hospital, starting with outdoor dome cameras.", "author": "technician@company.com", "timestamp": "2024-10-19T10:15:00Z"}]'::jsonb
-),
-(
-  '99999999-0000-0000-0000-000000000001', 
-  'Firmware Upgrade: Retail Branch Network', 
-  'Push latest stable firmware to all Dahua NVR units in the north zone to patch security exploit.', 
-  '00000000-0000-0000-0000-000000000002', -- assigned to Manager
-  '00000000-0000-0000-0000-000000000001', -- created by Admin
-  'BLOCKED', 'HIGH', CURRENT_DATE + interval '5 days',
-  '[{"text": "Awaiting custom firmware binary from OEM support.", "author": "manager@company.com", "timestamp": "2024-10-15T14:30:00Z"}]'::jsonb
-);
+INSERT INTO public.payment_receipts (organization_id, id, receipt_number, invoice_id, amount, payment_mode) VALUES 
+  ('99999999-0000-0000-0000-000000000001', gen_random_uuid(), 'RCPT-001', '55555555-0000-0000-0000-000000000001', 50000.00, 'Bank Transfer')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.expenses (organization_id, id, expense_number, category, reference_type, reference_id, amount, vendor_name, status, notes) VALUES 
+  ('99999999-0000-0000-0000-000000000001', gen_random_uuid(), 'EXP-DEMO-001', 'OFFICE', 'GENERAL', null, 25000.00, 'Modern Spaces Coworking', 'PAID', 'Office Rent for October'),
+  ('99999999-0000-0000-0000-000000000001', gen_random_uuid(), 'EXP-DEMO-002', 'TRAVEL', 'PROJECT', '77777777-0000-0000-0000-000000000001', 1200.00, 'Uber', 'PAID', 'Travel to Hospital Site for cabling audit')
+ON CONFLICT (expense_number) DO NOTHING;
+
+INSERT INTO public.tasks (organization_id, title, description, assigned_to, created_by, status, priority, due_date, project_id, amc_id, billable, billing_amount, comments) VALUES 
+  ('99999999-0000-0000-0000-000000000001', 'City Hospital NVR Setup', 'Install dual 16CH NVR at server room', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', 'PENDING', 'HIGH', CURRENT_DATE + interval '2 days', '77777777-0000-0000-0000-000000000001', null, false, 0, '[{"text": "Awaiting gate pass to enter server room.", "author": "technician@cctv.com", "timestamp": "2024-10-18T09:00:00Z"}]'::jsonb),
+  ('99999999-0000-0000-0000-000000000001', 'Warehouse Camera Fix', 'Lens cleaning and POE fix near Dock 4', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'COMPLETED', 'MEDIUM', CURRENT_DATE - interval '1 days', null, null, true, 1500.00, '[{"text": "Cleaned lens and tested ping.", "author": "technician@cctv.com", "timestamp": "2024-10-19T10:15:00Z"}]'::jsonb),
+  ('99999999-0000-0000-0000-000000000001', 'Tech Park Access Control Audit', 'Test all biometric scanners for offline mode syncing.', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000002', 'IN_PROGRESS', 'MEDIUM', CURRENT_DATE, '77777777-0000-0000-0000-000000000002', null, false, 0, '[]'::jsonb),
+  ('99999999-0000-0000-0000-000000000001', 'Reddy Jewellers HDD Upgrade', 'Swap 2TB drives for 4TB Purple drives.', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'PENDING', 'HIGH', CURRENT_DATE + interval '1 days', '77777777-0000-0000-0000-000000000002', null, true, 12000.00, '[{"text": "Checked drives out of inventory today.", "author": "manager@cctv.com", "timestamp": "2024-10-20T14:30:00Z"}]'::jsonb);
+
+INSERT INTO public.amc_contracts (organization_id, id, client_id, contract_number, start_date, end_date, annual_value, status, coverage_details) VALUES
+  ('99999999-0000-0000-0000-000000000001', gen_random_uuid(), '11111111-0000-0000-0000-000000000002', 'AMC-2024-001', CURRENT_DATE - interval '6 months', CURRENT_DATE + interval '6 months', 45000.00, 'ACTIVE', 'Quarterly maintenance of 40 cameras and 3 NVRs.'),
+  ('99999999-0000-0000-0000-000000000001', gen_random_uuid(), '11111111-0000-0000-0000-000000000001', 'AMC-2024-002', CURRENT_DATE - interval '11 months', CURRENT_DATE + interval '1 months', 22000.00, 'ACTIVE', 'Biomertic software updates and maglock alignments.');
+
+INSERT INTO public.clients (organization_id, id, name, company_name, email, phone) VALUES
+  ('99999999-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000011', 'Rahul Kumar', 'Speed Track Racing', 'rahul@speedtrack.com', '+91-98801-11001'),
+  ('99999999-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000012', 'Arvind Patel', 'Gujarat Auto Works', 'arvind@gujauto.in', '+91-98801-11002'),
+  ('99999999-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000013', 'Sanjay Dutt', 'Dutt Logistics Fleet', 'fleet@duttlogistics.com', '+91-98801-11003'),
+  ('99999999-0000-0000-0000-000000000002', '11111111-0000-0000-0000-000000000014', 'Imran Khan', 'Khan Motors', 'imran@khanmotors.com', '+91-98801-11004')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.categories (organization_id, id, name, description) VALUES
+  ('99999999-0000-0000-0000-000000000002', '33333333-0000-0000-0000-000000000011', 'Engine Components', 'Pistons, valves, and belts'),
+  ('99999999-0000-0000-0000-000000000002', '33333333-0000-0000-0000-000000000012', 'Consumables', 'Oils, filters, brakes'),
+  ('99999999-0000-0000-0000-000000000002', '33333333-0000-0000-0000-000000000013', 'Electrical', 'Batteries, relays, led lights'),
+  ('99999999-0000-0000-0000-000000000002', '33333333-0000-0000-0000-000000000014', 'Gear & Accessories', 'Helmets, riding jackets')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.products (organization_id, id, sku, name, brand, category_id, description, base_price, selling_price, tax_rate, unit, min_stock_alert, current_stock) VALUES
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000011', 'ENG-PIS-001', 'Forged Racing Piston Set', 'Mahle', '33333333-0000-0000-0000-000000000011', 'High comp piston kit', 4500.00, 7500.00, 28, 'Set', 3, 10),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000012', 'OIL-SYN-10W40', '10W40 Fully Synthetic', 'Motul', '33333333-0000-0000-0000-000000000012', '1L Engine Oil', 800.00, 1100.00, 18, 'Bottles', 20, 15),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000013', 'BAT-12V-7AH', '12V 7AH VRLA Battery', 'Exide', '33333333-0000-0000-0000-000000000013', 'Maintenance Free Battery', 1100.00, 1650.00, 28, 'Pieces', 10, 22),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000014', 'LED-H4-WHT', 'H4 White LED Headlight', 'Philips', '33333333-0000-0000-0000-000000000013', '6000k Ultra Bright', 1800.00, 2400.00, 18, 'Pair', 5, 8)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.stock_transactions (organization_id, product_id, transaction_type, quantity, unit_cost, notes, user_email) VALUES
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000011', 'IN', 10, 4500.00, 'Initial Stock', 'admin@motors.com'),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000012', 'IN', 15, 800.00, 'Stock critically low', 'admin@motors.com'),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000013', 'IN', 22, 1100.00, 'Distributor Batch', 'admin@motors.com'),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000014', 'IN', 8, 1800.00, 'Distributor Batch', 'admin@motors.com'),
+  ('99999999-0000-0000-0000-000000000002', '44444444-0000-0000-0000-000000000011', 'OUT', 1, null, 'Issued for engine rebuild', 'technician@motors.com');
+
+INSERT INTO public.suppliers (organization_id, id, company_name, contact_person, email, phone) VALUES 
+  ('99999999-0000-0000-0000-000000000002', '88888888-0000-0000-0000-000000000011', 'Motul Wholesales', 'Sameer', 'orders@motulindia.com', '+91-98765-00011'),
+  ('99999999-0000-0000-0000-000000000002', '88888888-0000-0000-0000-000000000012', 'Exide Authorized Dist', 'Priya', 'sales@exidedelhi.com', '+91-98765-00012')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.projects (organization_id, id, title, project_code, client_id, status, start_date) VALUES 
+  ('99999999-0000-0000-0000-000000000002', '77777777-0000-0000-0000-000000000011', 'Fleet Maintenance Run #1', 'SRV-2024-001', '11111111-0000-0000-0000-000000000013', 'COMPLETED', CURRENT_DATE - interval '10 days'),
+  ('99999999-0000-0000-0000-000000000002', '77777777-0000-0000-0000-000000000012', 'Track Bike Racing Rebuild', 'SRV-2024-002', '11111111-0000-0000-0000-000000000011', 'INSTALLING', CURRENT_DATE)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.quotations (organization_id, id, quote_number, project_id, client_id, status, grand_total, valid_until) VALUES 
+  ('99999999-0000-0000-0000-000000000002', '66666666-0000-0000-0000-000000000011', 'QT-2024-M01', '77777777-0000-0000-0000-000000000011', '11111111-0000-0000-0000-000000000013', 'ACCEPTED', 45000.00, CURRENT_DATE + interval '3 days')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.invoices (organization_id, id, invoice_number, client_id, reference_type, reference_id, status, subtotal, tax_amt, grand_total, due_date) VALUES 
+  ('99999999-0000-0000-0000-000000000002', '55555555-0000-0000-0000-000000000011', 'INV-M01', '11111111-0000-0000-0000-000000000013', 'PROJECT', '77777777-0000-0000-0000-000000000011', 'PAID', 38135.59, 6864.41, 45000.00, CURRENT_DATE)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.invoice_line_items (organization_id, invoice_id, description, quantity, unit_price, total_price) VALUES
+  ('99999999-0000-0000-0000-000000000002', '55555555-0000-0000-0000-000000000011', 'Fleet Maintenance Run Cost', 1, 38135.59, 38135.59);
+
+INSERT INTO public.payment_receipts (organization_id, id, receipt_number, invoice_id, amount, payment_mode) VALUES 
+  ('99999999-0000-0000-0000-000000000002', gen_random_uuid(), 'RCPT-M01', '55555555-0000-0000-0000-000000000011', 45000.00, 'UPI')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.expenses (organization_id, id, expense_number, category, reference_type, reference_id, amount, vendor_name, status, notes) VALUES 
+  ('99999999-0000-0000-0000-000000000002', gen_random_uuid(), 'EXP-M01', 'LABOR', 'GENERAL', null, 15000.00, 'Mechanic Guild Freelancer', 'UNPAID', 'Outsourced labor for engine block machining')
+ON CONFLICT (expense_number) DO NOTHING;
+
+INSERT INTO public.tasks (organization_id, title, description, assigned_to, created_by, status, priority, due_date, project_id, amc_id, billable, billing_amount, comments) VALUES 
+  ('99999999-0000-0000-0000-000000000002', 'Engine Rebuild: RJ-14-1234', 'Strip engine, replace piston set, seal headers', '00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000012', 'IN_PROGRESS', 'HIGH', CURRENT_DATE, '77777777-0000-0000-0000-000000000012', null, true, 8000.00, '[{"text": "Engine stripped. Awaiting machining.", "author": "technician@motors.com", "timestamp": "2024-10-18T09:00:00Z"}]'::jsonb),
+  ('99999999-0000-0000-0000-000000000002', 'Dispatch Oil Crates', 'Send 5 boxes of Motul to Gujarat Garage', '00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000011', 'PENDING', 'MEDIUM', CURRENT_DATE + interval '3 days', null, null, false, 0, '[{"text": "Packed and ready for dispatch.", "author": "technician@motors.com", "timestamp": "2024-10-18T09:00:00Z"}]'::jsonb),
+  ('99999999-0000-0000-0000-000000000002', 'Fleet Maintenance: Dutt Logistics', 'Perform 10k service including brake pads and oil change on 3 trucks.', '00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000012', 'PENDING', 'HIGH', CURRENT_DATE + interval '2 days', '77777777-0000-0000-0000-000000000011', null, false, 0, '[]'::jsonb),
+  ('99999999-0000-0000-0000-000000000002', 'Electrical Diagnosis: KA-01-9922', 'Check battery drain issue and rectify wiring shorts.', '00000000-0000-0000-0000-000000000013', '00000000-0000-0000-0000-000000000012', 'COMPLETED', 'MEDIUM', CURRENT_DATE - interval '2 days', null, null, true, 2500.00, '[{"text": "Replaced relay. No drain found.", "author": "technician@motors.com", "timestamp": "2024-10-21T09:00:00Z"}]'::jsonb);
+
+INSERT INTO public.amc_contracts (organization_id, id, client_id, contract_number, start_date, end_date, annual_value, status, coverage_details) VALUES
+  ('99999999-0000-0000-0000-000000000002', gen_random_uuid(), '11111111-0000-0000-0000-000000000013', 'FLEET-AMC-001', CURRENT_DATE - interval '2 months', CURRENT_DATE + interval '10 months', 120000.00, 'ACTIVE', 'Annual maintenance for all logistics vehicles including oil checks.');
