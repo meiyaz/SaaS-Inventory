@@ -6,9 +6,9 @@ import Login from './pages/Login';
 import DashboardLayout from './layouts/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import Clients from './pages/Clients';
+import ClientDetail from './pages/ClientDetail';
 import Suppliers from './pages/Suppliers';
 import Projects from './pages/Projects';
-import Categories from './pages/Categories';
 import Products from './pages/Products';
 import BOM from './pages/BOM';
 import Pricing from './pages/Pricing';
@@ -23,7 +23,14 @@ import Settings from './pages/Settings';
 import ProductImport from './pages/ProductImport';
 import Reports from './pages/Reports';
 import Tasks from './pages/Tasks';
+import Team from './pages/Team';
+import Invoices from './pages/Billing';
+import Expenses from './pages/Expenses';
+import BillingLogs from './pages/BillingLogs';
+import InvoicePrint from './pages/InvoicePrint';
+import AuditLogs from './pages/AuditLogs';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 
 const ProtectedRoute = ({ children, requiredPermission, allowedRoles }) => {
     const { user, role, permissions, loading } = useAuth();
@@ -70,49 +77,59 @@ const PlaceholderView = ({ title }) => (
 function App() {
     return (
         <AuthProvider>
-            <Router>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<Landing />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route path="/login" element={<Login />} />
+            <ToastProvider>
+                <Router>
+                    <Routes>
+                        {/* Public Routes */}
+                        <Route path="/" element={<Landing />} />
+                        <Route path="/register" element={<Register />} />
+                        <Route path="/login" element={<Login />} />
 
-                    {/* Protected Admin Routes */}
-                    <Route
-                        path="/"
-                        element={
-                            <ProtectedRoute>
-                                <DashboardLayout />
-                            </ProtectedRoute>
-                        }
-                    >
-                        <Route path="dashboard" element={<ProtectedRoute requiredPermission="dashboard"><Dashboard /></ProtectedRoute>} />
-                        <Route path="projects" element={<ProtectedRoute requiredPermission="projects"><Projects /></ProtectedRoute>} />
-                        <Route path="projects/:projectId/bom" element={<ProtectedRoute requiredPermission="projects"><BOM /></ProtectedRoute>} />
-                        <Route path="projects/:projectId/pricing" element={<ProtectedRoute requiredPermission="projects"><Pricing /></ProtectedRoute>} />
-                        <Route path="clients" element={<ProtectedRoute requiredPermission="clients"><Clients /></ProtectedRoute>} />
-                        <Route path="suppliers" element={<ProtectedRoute requiredPermission="suppliers"><Suppliers /></ProtectedRoute>} />
-                        <Route path="categories" element={<ProtectedRoute requiredPermission="categories"><Categories /></ProtectedRoute>} />
-                        <Route path="products" element={<ProtectedRoute requiredPermission="products"><Products /></ProtectedRoute>} />
-                        <Route path="products/import" element={<ProtectedRoute requiredPermission="products_import"><ProductImport /></ProtectedRoute>} />
-                        <Route path="products/in" element={<ProtectedRoute requiredPermission="products_in"><StockIn /></ProtectedRoute>} />
-                        <Route path="products/out" element={<ProtectedRoute requiredPermission="products_out"><StockOut /></ProtectedRoute>} />
-                        <Route path="products/logs" element={<ProtectedRoute requiredPermission="products_logs"><StockLogs /></ProtectedRoute>} />
-                        <Route path="billing" element={<ProtectedRoute requiredPermission="billing"><Quotations /></ProtectedRoute>} />
-                        <Route path="billing/quotation/new" element={<ProtectedRoute requiredPermission="billing"><QuotationBuilder /></ProtectedRoute>} />
-                        <Route path="billing/quotation/new/:projectId" element={<ProtectedRoute requiredPermission="billing"><QuotationBuilder /></ProtectedRoute>} />
-                        <Route path="billing/quotation/:quoteId" element={<ProtectedRoute requiredPermission="billing"><QuotationPrint /></ProtectedRoute>} />
-                        <Route path="billing/quotation/:quoteId/print" element={<ProtectedRoute requiredPermission="billing"><QuotationPrint /></ProtectedRoute>} />
-                        <Route path="amc" element={<ProtectedRoute requiredPermission="amc"><AMC /></ProtectedRoute>} />
-                        <Route path="reports" element={<ProtectedRoute requiredPermission="reports"><Reports /></ProtectedRoute>} />
-                        <Route path="tasks" element={<ProtectedRoute requiredPermission="tasks"><Tasks /></ProtectedRoute>} />
-                        <Route path="settings" element={<ProtectedRoute requiredPermission="settings"><Settings /></ProtectedRoute>} />
-                    </Route>
+                        {/* Protected Admin Routes */}
+                        <Route
+                            path="/"
+                            element={
+                                <ProtectedRoute>
+                                    <DashboardLayout />
+                                </ProtectedRoute>
+                            }
+                        >
+                            <Route path="dashboard" element={<ProtectedRoute requiredPermission="dashboard"><Dashboard /></ProtectedRoute>} />
+                            <Route path="projects" element={<ProtectedRoute requiredPermission="projects"><Projects /></ProtectedRoute>} />
+                            <Route path="projects/:projectId/bom" element={<ProtectedRoute requiredPermission="projects"><BOM /></ProtectedRoute>} />
+                            <Route path="projects/:projectId/pricing" element={<ProtectedRoute requiredPermission="projects"><Pricing /></ProtectedRoute>} />
+                            <Route path="clients" element={<ProtectedRoute requiredPermission="clients"><Clients /></ProtectedRoute>} />
+                            <Route path="clients/:clientId" element={<ProtectedRoute requiredPermission="clients"><ClientDetail /></ProtectedRoute>} />
+                            <Route path="suppliers" element={<ProtectedRoute requiredPermission="suppliers"><Suppliers /></ProtectedRoute>} />
+                            <Route path="products" element={<ProtectedRoute requiredPermission="products"><Products /></ProtectedRoute>} />
+                            <Route path="products/import" element={<ProtectedRoute requiredPermission="products_import"><ProductImport /></ProtectedRoute>} />
+                            <Route path="products/in" element={<ProtectedRoute requiredPermission="products_in"><StockIn /></ProtectedRoute>} />
+                            <Route path="products/out" element={<ProtectedRoute requiredPermission="products_out"><StockOut /></ProtectedRoute>} />
+                            <Route path="products/logs" element={<ProtectedRoute requiredPermission="products_logs"><StockLogs /></ProtectedRoute>} />
+                            <Route path="billing" element={<ProtectedRoute requiredPermission="billing"><Quotations /></ProtectedRoute>} />
+                            <Route path="billing/quotation/new" element={<ProtectedRoute requiredPermission="billing"><QuotationBuilder /></ProtectedRoute>} />
+                            <Route path="billing/quotation/new/:projectId" element={<ProtectedRoute requiredPermission="billing"><QuotationBuilder /></ProtectedRoute>} />
+                            <Route path="billing/quotation/edit/:quoteId" element={<ProtectedRoute requiredPermission="billing"><QuotationBuilder isEdit={true} /></ProtectedRoute>} />
+                            <Route path="billing/quotation/:quoteId" element={<ProtectedRoute requiredPermission="billing"><QuotationPrint /></ProtectedRoute>} />
+                            <Route path="billing/quotation/:quoteId/print" element={<ProtectedRoute requiredPermission="billing"><QuotationPrint /></ProtectedRoute>} />
+                            <Route path="invoices" element={<ProtectedRoute requiredPermission="billing"><Invoices /></ProtectedRoute>} />
+                            <Route path="invoices/:invoiceId" element={<ProtectedRoute requiredPermission="billing"><InvoicePrint /></ProtectedRoute>} />
+                            <Route path="invoices/:invoiceId/print" element={<ProtectedRoute requiredPermission="billing"><InvoicePrint /></ProtectedRoute>} />
+                            <Route path="expenses" element={<ProtectedRoute requiredPermission="billing"><Expenses /></ProtectedRoute>} />
+                            <Route path="billing/logs" element={<ProtectedRoute requiredPermission="billing"><BillingLogs /></ProtectedRoute>} />
+                            <Route path="amc" element={<ProtectedRoute requiredPermission="amc"><AMC /></ProtectedRoute>} />
+                            <Route path="reports" element={<ProtectedRoute requiredPermission="reports"><Reports /></ProtectedRoute>} />
+                            <Route path="tasks" element={<ProtectedRoute requiredPermission="tasks"><Tasks /></ProtectedRoute>} />
+                            <Route path="team" element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'TECHNICIAN']}><Team /></ProtectedRoute>} />
+                            <Route path="audit-logs" element={<ProtectedRoute allowedRoles={['ADMIN']}><AuditLogs /></ProtectedRoute>} />
+                            <Route path="settings" element={<ProtectedRoute requiredPermission="settings"><Settings /></ProtectedRoute>} />
+                        </Route>
 
-                    {/* Fallback routing */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-            </Router>
+                        {/* Fallback routing */}
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                </Router>
+            </ToastProvider>
         </AuthProvider>
     );
 }

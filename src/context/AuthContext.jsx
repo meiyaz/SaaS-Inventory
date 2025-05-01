@@ -9,6 +9,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [role, setRole] = useState(null);
     const [orgId, setOrgId] = useState(null);
+    const [orgName, setOrgName] = useState(null);
     const [permissions, setPermissions] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -21,7 +22,7 @@ export const AuthProvider = ({ children }) => {
         try {
             const { data, error } = await supabase
                 .from('organization_members')
-                .select('role, organization_id, organizations(role_settings)')
+                .select('role, organization_id, organizations(role_settings, name)')
                 .eq('user_id', userId)
                 .maybeSingle();
 
@@ -30,6 +31,7 @@ export const AuthProvider = ({ children }) => {
                 const userRole = data.role || 'TECHNICIAN';
                 setRole(userRole);
                 setOrgId(data.organization_id);
+                setOrgName(data.organizations?.name || null);
 
                 if (userRole === 'ADMIN') {
                     setPermissions(['ADMIN_ALL']);
@@ -40,12 +42,14 @@ export const AuthProvider = ({ children }) => {
             } else {
                 setRole('TECHNICIAN');
                 setOrgId(null);
+                setOrgName(null);
                 setPermissions([]);
             }
         } catch (error) {
             console.warn("Could not fetch user context:", error.message);
             setRole('TECHNICIAN');
             setOrgId(null);
+            setOrgName(null);
             setPermissions([]);
         }
     };
@@ -113,7 +117,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, role, orgId, permissions, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, role, orgId, orgName, permissions, login, logout, loading }}>
             {loading ? (
                 <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
