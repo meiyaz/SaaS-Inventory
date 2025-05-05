@@ -99,7 +99,7 @@ export const LandingPage = () => {
                             <span className="font-bold text-lg">SaaS Inventory</span>
                         </div>
                         <div className="text-slate-400 text-sm">
-                            © 2024 SaaS Inventory. All rights reserved.
+                            &copy; {new Date().getFullYear()} SaaS Inventory. All rights reserved.
                         </div>
                     </div>
                 </div>
