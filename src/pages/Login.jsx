@@ -123,7 +123,7 @@ export const Login = () => {
                 </div>
 
                 <p className="mt-8 text-center text-sm text-slate-500">
-                    &copy; 2024 SaaS Inventory. All rights reserved.
+                    &copy; {new Date().getFullYear()} SaaS Inventory. All rights reserved.
                 </p>
             </div>
         </div>
