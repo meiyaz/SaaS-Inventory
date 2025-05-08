@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
     LayoutDashboard, Package, AlertTriangle, FileText,
     ShieldAlert, ArrowDownToLine, ArrowUpRight, Activity, Clock, Plus,
-    Cpu, Zap, Layers
+    Cpu, Zap, Layers, CheckSquare, TrendingUp, TrendingDown, IndianRupee
 } from 'lucide-react';
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
+    const { user, role } = useAuth();
     const [stats, setStats] = useState({
         lowStockItems: [],
         recentLogs: [],
         expiringAmcs: [],
         pendingQuotes: [],
+        myTasks: [],
     });
 
     const hour = new Date().getHours();
@@ -27,21 +30,36 @@ const Dashboard = () => {
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-        const [prodRes, logRes, amcRes, quoteRes] = await Promise.all([
+        let taskQuery = Promise.resolve({ data: null });
+        if (role === 'TECHNICIAN' && user) {
+            taskQuery = supabase.from('tasks').select('*').eq('assigned_to', user.id).neq('status', 'COMPLETED').order('priority', { ascending: false }).limit(4);
+        }
+
+        const [prodRes, logRes, amcRes, quoteRes, taskRes, invRes, expRes] = await Promise.all([
             supabase.from('products').select('id, name, sku, current_stock, min_stock_alert'),
             supabase.from('stock_transactions').select('id, transaction_type, quantity, created_at, products(name)').order('created_at', { ascending: false }).limit(6),
             supabase.from('amc_contracts').select('id, contract_number, end_date, clients(company_name, name)').in('status', ['ACTIVE']).lte('end_date', thirtyDaysFromNow.toISOString()).gte('end_date', new Date(new Date().setHours(0, 0, 0, 0)).toISOString()).order('end_date'),
-            supabase.from('quotations').select('id, quote_number, grand_total, created_at, projects(title)').eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4)
+            supabase.from('quotations').select('id, quote_number, grand_total, created_at, projects(title)').eq('status', 'DRAFT').order('created_at', { ascending: false }).limit(4),
+            taskQuery,
+            supabase.from('invoices').select('grand_total').neq('status', 'DRAFT'),
+            supabase.from('expenses').select('amount')
         ]);
 
         const products = prodRes.data || [];
         const lowStock = products.filter(p => p.current_stock <= p.min_stock_alert);
+
+        const rev = (invRes.data || []).reduce((acc, curr) => acc + (Number(curr.grand_total) || 0), 0);
+        const exp = (expRes.data || []).reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
 
         setStats({
             lowStockItems: lowStock,
             recentLogs: logRes.data || [],
             expiringAmcs: amcRes.data || [],
             pendingQuotes: quoteRes.data || [],
+            myTasks: taskRes.data || [],
+            totalRevenue: rev,
+            totalExpense: exp,
+            netProfit: rev - exp
         });
         setLoading(false);
     };
@@ -73,42 +91,55 @@ const Dashboard = () => {
     return (
         <div className="flex flex-col gap-8 pb-8">
 
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900 px-8 py-10 shadow-2xl">
-                <div className="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-                <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800 tracking-tight">
+                        {greeting}, {role === 'ADMIN' ? 'Admin' : role === 'MANAGER' ? 'Manager' : 'Team'}
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                        Here's an overview of your operation today.
+                    </p>
+                </div>
 
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div>
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-xs font-medium mb-4 backdrop-blur-sm">
-                            <Zap className="w-3.5 h-3.5 text-yellow-400" /> System Online & Synced
-                        </div>
-                        <h2 className="text-3xl md:text-4xl font-black text-white tracking-tight mb-2">
-                            {greeting}, Admin.
-                        </h2>
-                        <p className="text-slate-300 text-base max-w-xl">
-                            Here is what's happening in your warehouse today. You have <strong className="text-rose-400 font-bold">{stats.lowStockItems.length}</strong> items running low and <strong className="text-indigo-400 font-bold">{stats.pendingQuotes.length}</strong> pending quotes to send.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                        <button onClick={() => navigate('/products/in')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] overflow-hidden">
-                            <ArrowDownToLine className="w-6 h-6 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-medium text-white">Stock In</span>
-                            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <button onClick={() => navigate('/products/in')} className="flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors border border-slate-200">
+                        <ArrowDownToLine className="w-4 h-4 mr-2" /> Stock In
+                    </button>
+                    <button onClick={() => navigate('/products/out')} className="flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-lg transition-colors border border-slate-200">
+                        <ArrowUpRight className="w-4 h-4 mr-2" /> Dispatch
+                    </button>
+                    {role !== 'TECHNICIAN' ? (
+                        <button onClick={() => navigate('/billing')} className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
+                            <FileText className="w-4 h-4 mr-2" /> New Quote
                         </button>
-                        <button onClick={() => navigate('/products/out')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] overflow-hidden">
-                            <ArrowUpRight className="w-6 h-6 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-medium text-white">Dispatch</span>
-                            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-400 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
+                    ) : (
+                        <button onClick={() => navigate('/tasks')} className="flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
+                            <CheckSquare className="w-4 h-4 mr-2" /> My Tasks
                         </button>
-                        <button onClick={() => navigate('/billing')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 border border-amber-400/50 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(245,158,11,0.5)] overflow-hidden">
-                            <FileText className="w-6 h-6 text-white mb-2 group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-bold text-white">New Quote</span>
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
+
+            {role !== 'TECHNICIAN' && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-white rounded-xl p-5 border border-slate-200 flex flex-col hover:border-slate-300 transition-colors cursor-pointer" onClick={() => navigate('/invoices')}>
+                        <span className="text-sm font-semibold text-slate-500 mb-1 flex items-center gap-2">Gross Revenue</span>
+                        <span className="text-2xl font-bold text-slate-800">₹{(stats.totalRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-5 border border-slate-200 flex flex-col hover:border-slate-300 transition-colors cursor-pointer" onClick={() => navigate('/expenses')}>
+                        <span className="text-sm font-semibold text-slate-500 mb-1 flex items-center gap-2">Total Expenses</span>
+                        <span className="text-2xl font-bold text-slate-800">₹{(stats.totalExpense || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+
+                    <div className="bg-white rounded-xl p-5 border border-slate-200 flex flex-col hover:border-slate-300 transition-colors">
+                        <span className="text-sm font-semibold text-slate-500 mb-1 flex items-center gap-2">Net Profit</span>
+                        <span className={`text-2xl font-bold ${(stats.netProfit || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            ₹{(stats.netProfit || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
@@ -162,55 +193,84 @@ const Dashboard = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group mt-0">
-                            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                                <h3 className="font-bold text-slate-800 text-sm flex items-center">
-                                    <div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div> Draft Quotes
-                                </h3>
-                                <div className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{stats.pendingQuotes.length}</div>
-                            </div>
-                            <div className="divide-y divide-slate-50 flex-1">
-                                {stats.pendingQuotes.length === 0
-                                    ? <div className="h-full flex items-center justify-center p-8 text-sm text-slate-400"><p>No drafts pending.</p></div>
-                                    : stats.pendingQuotes.map(q => (
-                                        <div key={q.id} onClick={() => navigate(`/billing/quotation/${q.id}`)} className="p-4 hover:bg-amber-50/30 cursor-pointer transition-colors block">
-                                            <div className="flex justify-between items-center mb-1.5">
-                                                <p className="text-[13px] font-bold text-slate-900 font-mono">{q.quote_number}</p>
-                                                <span className="text-[11px] font-medium text-slate-400">{timeAgo(q.created_at)}</span>
+                        {role === 'TECHNICIAN' ? (
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group md:col-span-2 mt-0">
+                                <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 className="font-bold text-slate-800 text-sm flex items-center">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></div> Priority Pending Tasks
+                                    </h3>
+                                    <div className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{stats.myTasks.length}</div>
+                                </div>
+                                <div className="divide-y divide-slate-50 flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                                    {stats.myTasks.length === 0
+                                        ? <div className="h-full flex items-center justify-center p-8 text-sm text-slate-400 min-w-full col-span-full"><p>All caught up!</p></div>
+                                        : stats.myTasks.map(task => (
+                                            <div key={task.id} onClick={() => navigate('/tasks')} className="p-4 hover:bg-emerald-50/30 cursor-pointer transition-colors block border-r border-slate-50 last:border-0 relative">
+                                                <div className="flex justify-between items-center mb-1.5">
+                                                    <span className={`text-[9px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${task.priority === 'HIGH' ? 'text-rose-600 bg-rose-50 border-rose-100' : 'text-blue-600 bg-blue-50 border-blue-100'}`}>
+                                                        {task.priority}
+                                                    </span>
+                                                    <span className="text-[10px] font-medium text-slate-400">{timeAgo(task.created_at)}</span>
+                                                </div>
+                                                <p className="text-sm font-bold text-slate-800 line-clamp-2 mt-2 leading-snug">{task.title}</p>
+                                                <p className="text-[11px] font-bold text-slate-500 mt-2">{task.status}</p>
                                             </div>
-                                            <p className="text-xs text-slate-500 truncate mb-2">{q.projects?.title}</p>
-                                            <p className="text-sm font-black text-amber-600">₹{Number(q.grand_total).toLocaleString('en-IN')}</p>
-                                        </div>
-                                    ))
-                                }
+                                        ))
+                                    }
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <>
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group mt-0">
+                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                                        <h3 className="font-bold text-slate-800 text-sm flex items-center">
+                                            <div className="w-2 h-2 rounded-full bg-amber-500 mr-2"></div> Draft Quotes
+                                        </h3>
+                                        <div className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{stats.pendingQuotes.length}</div>
+                                    </div>
+                                    <div className="divide-y divide-slate-50 flex-1">
+                                        {stats.pendingQuotes.length === 0
+                                            ? <div className="h-full flex items-center justify-center p-8 text-sm text-slate-400"><p>No drafts pending.</p></div>
+                                            : stats.pendingQuotes.map(q => (
+                                                <div key={q.id} onClick={() => navigate(`/billing/quotation/${q.id}`)} className="p-4 hover:bg-amber-50/30 cursor-pointer transition-colors block">
+                                                    <div className="flex justify-between items-center mb-1.5">
+                                                        <p className="text-[13px] font-bold text-slate-900 font-mono">{q.quote_number}</p>
+                                                        <span className="text-[11px] font-medium text-slate-400">{timeAgo(q.created_at)}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 truncate mb-2">{q.projects?.title}</p>
+                                                    <p className="text-sm font-black text-amber-600">₹{Number(q.grand_total).toLocaleString('en-IN')}</p>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
 
-                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group mt-0">
-                            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                                <h3 className="font-bold text-slate-800 text-sm flex items-center">
-                                    <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div> AMC Renewals
-                                </h3>
-                                <div className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{stats.expiringAmcs.length}</div>
-                            </div>
-                            <div className="divide-y divide-slate-50 flex-1">
-                                {stats.expiringAmcs.length === 0
-                                    ? <div className="h-full flex items-center justify-center p-8 text-sm text-slate-400"><p>No AMCs expiring in 30 days.</p></div>
-                                    : stats.expiringAmcs.map(a => (
-                                        <div key={a.id} onClick={() => navigate('/amc')} className="p-4 hover:bg-blue-50/30 cursor-pointer transition-colors block">
-                                            <div className="flex justify-between items-center mb-1.5">
-                                                <p className="text-[13px] font-bold text-slate-900 font-mono">{a.contract_number}</p>
-                                                <span className="text-[10px] uppercase tracking-wider font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-100">
-                                                    Exp: {fmtDate(a.end_date)}
-                                                </span>
-                                            </div>
-                                            <p className="text-xs text-slate-500 truncate">{a.clients?.company_name || a.clients?.name}</p>
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        </div>
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col group mt-0">
+                                    <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+                                        <h3 className="font-bold text-slate-800 text-sm flex items-center">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div> AMC Renewals
+                                        </h3>
+                                        <div className="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{stats.expiringAmcs.length}</div>
+                                    </div>
+                                    <div className="divide-y divide-slate-50 flex-1">
+                                        {stats.expiringAmcs.length === 0
+                                            ? <div className="h-full flex items-center justify-center p-8 text-sm text-slate-400"><p>No AMCs expiring in 30 days.</p></div>
+                                            : stats.expiringAmcs.map(a => (
+                                                <div key={a.id} onClick={() => navigate('/amc')} className="p-4 hover:bg-blue-50/30 cursor-pointer transition-colors block">
+                                                    <div className="flex justify-between items-center mb-1.5">
+                                                        <p className="text-[13px] font-bold text-slate-900 font-mono">{a.contract_number}</p>
+                                                        <span className="text-[10px] uppercase tracking-wider font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded border border-rose-100">
+                                                            Exp: {fmtDate(a.end_date)}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 truncate">{a.clients?.company_name || a.clients?.name}</p>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
