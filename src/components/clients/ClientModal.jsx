@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
-import { X } from 'lucide-react';
+import { X, MapPin } from 'lucide-react';
 
 const ClientModal = ({ isOpen, onClose, client }) => {
     const isEditing = !!client;
@@ -14,6 +14,7 @@ const ClientModal = ({ isOpen, onClose, client }) => {
         phone: '',
         address: '',
         gst_number: '',
+        location_url: '',
         notes: ''
     });
 
@@ -26,11 +27,12 @@ const ClientModal = ({ isOpen, onClose, client }) => {
                 phone: client.phone || '',
                 address: client.address || '',
                 gst_number: client.gst_number || '',
+                location_url: client.location_url || '',
                 notes: client.notes || ''
             });
         } else {
             setFormData({
-                name: '', company_name: '', email: '', phone: '', address: '', gst_number: '', notes: ''
+                name: '', company_name: '', email: '', phone: '', address: '', gst_number: '', location_url: '', notes: ''
             });
         }
     }, [client]);
@@ -133,6 +135,15 @@ const ClientModal = ({ isOpen, onClose, client }) => {
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">Site Address</label>
                                 <textarea name="address" rows="2" value={formData.address} onChange={handleChange} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none" placeholder="123 Main St, City, State ZIP"></textarea>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1">
+                                    <MapPin className="w-3.5 h-3.5 text-slate-400" /> Location URL
+                                </label>
+                                <input type="url" name="location_url" value={formData.location_url} onChange={handleChange}
+                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    placeholder="https://maps.google.com/?q=..." />
                             </div>
 
                             <div>
