@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase';
 import { X, FolderPlus, Trash2 } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import ConfirmModal from '../ui/ConfirmModal';
 
 const STATUS_OPTIONS = [
     'LEAD', 'SURVEY', 'QUOTED', 'WON', 'INSTALLING', 'COMPLETED', 'LOST'
@@ -11,6 +13,8 @@ const ProjectModal = ({ isOpen, onClose, project }) => {
     const [loading, setLoading] = useState(false);
     const [clients, setClients] = useState([]);
     const [error, setError] = useState('');
+    const toast = useToast();
+    const [confirm, setConfirm] = useState(null);
 
     const [form, setForm] = useState({
         title: '', project_code: '', client_id: '', status: 'LEAD',
@@ -70,9 +74,15 @@ const ProjectModal = ({ isOpen, onClose, project }) => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Permanently delete this project? All BOM and linked data will also be removed.')) return;
-        await supabase.from('projects').delete().eq('id', project.id);
-        onClose(true);
+        setConfirm({
+            message: 'Permanently delete this project? All BOM and linked data will also be removed.',
+            confirmLabel: 'Delete',
+            danger: true,
+            onConfirm: async () => {
+                await supabase.from('projects').delete().eq('id', project.id);
+                onClose(true);
+            },
+        });
     };
 
     return (
@@ -185,6 +195,7 @@ const ProjectModal = ({ isOpen, onClose, project }) => {
                     </div>
                 </div>
             </div>
+            <ConfirmModal config={confirm} onClose={() => setConfirm(null)} />
         </div>
     );
 };
