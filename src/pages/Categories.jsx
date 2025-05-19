@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { Plus, Edit, Trash2, Tag } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const Categories = () => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
+    const toast = useToast();
+    const [confirm, setConfirm] = useState(null);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -55,16 +59,21 @@ const Categories = () => {
             fetchCategories();
         } catch (error) {
             console.error(error);
-            alert('Failed to save category');
+            toast('Failed to save category', 'error');
             setLoading(false);
         }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Delete this category? Products using this category might lose their reference.')) {
-            await supabase.from('categories').delete().eq('id', id);
-            fetchCategories();
-        }
+        setConfirm({
+            message: 'Delete this category? Products using this category might lose their reference.',
+            confirmLabel: 'Delete',
+            danger: true,
+            onConfirm: async () => {
+                await supabase.from('categories').delete().eq('id', id);
+                fetchCategories();
+            },
+        });
     };
 
     return (
@@ -146,6 +155,7 @@ const Categories = () => {
                     </div>
                 )}
             </div>
+            <ConfirmModal config={confirm} onClose={() => setConfirm(null)} />
         </div>
     );
 };
