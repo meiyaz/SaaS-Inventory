@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Package, Filter, AlertCircle, Upload, Download, Printer } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Package, Filter, AlertCircle, Upload, Download, Printer, Tag } from 'lucide-react';
 import ProductModal from '../components/products/ProductModal';
+import CategoryModal from '../components/products/CategoryModal';
 import { downloadCsv } from '../utils/exportCsv';
+import Select from '../components/ui/Select';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const Products = () => {
     const navigate = useNavigate();
@@ -14,7 +18,10 @@ const Products = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
+    const toast = useToast();
+    const [confirm, setConfirm] = useState(null);
 
     useEffect(() => {
         fetchInitialData();
@@ -60,14 +67,16 @@ const Products = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Delete this product? WARNING: If this item has existing stock logs, deletion will fail to protect data integrity.')) {
-            const { error } = await supabase.from('products').delete().eq('id', id);
-            if (!error) {
-                setProducts(products.filter(p => p.id !== id));
-            } else {
-                alert('Could not delete product. It may be referenced in stock logs or bills.');
-            }
-        }
+        setConfirm({
+            message: 'Delete this product? If it has existing stock logs, deletion will fail to protect data integrity.',
+            confirmLabel: 'Delete',
+            danger: true,
+            onConfirm: async () => {
+                const { error } = await supabase.from('products').delete().eq('id', id);
+                if (!error) setProducts(products.filter(p => p.id !== id));
+                else toast('Could not delete product. It may be referenced in stock logs or bills.', 'error');
+            },
+        });
     };
 
     const handleModalClose = (refresh = false) => {
@@ -113,22 +122,20 @@ const Products = () => {
                     </div>
 
                     <div className="relative flex-1 sm:w-48">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Filter className="h-4 w-4 text-slate-400" />
-                        </div>
-                        <select
-                            title="Category Filter"
-                            className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none bg-white"
+                        <Select
                             value={filterCategory}
-                            onChange={(e) => setFilterCategory(e.target.value)}
-                        >
-                            <option value="">All Categories</option>
-                            {categories.map(c => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
+                            onChange={v => setFilterCategory(v)}
+                            placeholder="All Categories"
+                            options={categories.map(c => ({ value: c.id, label: c.name }))}
+                        />
                     </div>
 
+                    <button
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        className="inline-flex items-center px-4 py-2 bg-slate-100 border border-slate-200 shadow-sm rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-200 hover:border-slate-300 transition-colors"
+                    >
+                        <Tag className="h-4 w-4 mr-1.5" /> Manage Categories
+                    </button>
                     <button
                         onClick={handleCreateNew}
                         className="inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -163,98 +170,123 @@ const Products = () => {
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="flex-1 overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                        <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Product Info</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Classification</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Base Cost</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Selling Price</th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Current Stock</th>
-                            <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
-                        {loading ? (
-                            <tr>
-                                <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
-                                    <div className="inline-flex items-center">
-                                        <div className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-blue-600 animate-spin mr-3"></div>
-                                        Loading master catalog...
+            {/* Product List */}
+            <div className="flex-1">
+                {loading ? (
+                    <div className="px-6 py-12 text-center text-slate-500">
+                        <div className="inline-flex items-center">
+                            <div className="w-5 h-5 rounded-full border-2 border-slate-300 border-t-blue-600 animate-spin mr-3"></div>
+                            Loading master catalog...
+                        </div>
+                    </div>
+                ) : filteredProducts.length === 0 ? (
+                    <div className="px-6 py-16 text-center">
+                        <Package className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                        <p className="text-slate-500 font-medium">No products found in the database.</p>
+                        <p className="text-sm mt-1 text-slate-400">Add a new product to begin tracking its stock levels.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Mobile cards (< lg) */}
+                        <div className="lg:hidden divide-y divide-slate-100">
+                            {filteredProducts.map(product => (
+                                <div key={product.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-slate-900 truncate">{product.name}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <span className="font-mono text-[10px] bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded">{product.sku}</span>
+                                                {product.brand && <span className="text-xs text-slate-500">{product.brand}</span>}
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0 flex items-center gap-2">
+                                            <button onClick={() => handleEdit(product)} className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"><Edit className="h-4 w-4" /></button>
+                                            <button onClick={() => handleDelete(product.id)} className="p-1.5 text-slate-400 hover:text-red-600 transition-colors"><Trash2 className="h-4 w-4" /></button>
+                                        </div>
                                     </div>
-                                </td>
-                            </tr>
-                        ) : filteredProducts.length === 0 ? (
-                            <tr>
-                                <td colSpan="6" className="px-6 py-16 text-center">
-                                    <Package className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-                                    <p className="text-slate-500 font-medium">No products found in the database.</p>
-                                    <p className="text-sm mt-1 text-slate-400">Add a new product to begin tracking its stock levels.</p>
-                                </td>
-                            </tr>
-                        ) : (
-                            filteredProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center">
-                                            <div>
-                                                <div className="font-bold text-slate-900 group">
-                                                    {product.name}
-                                                </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <p className="text-xs text-slate-500">{product.categories?.name || 'Uncategorized'}</p>
+                                        </div>
+                                        <div className="shrink-0 flex items-center gap-2">
+                                            <span className="text-sm font-bold text-green-700">₹{product.selling_price?.toFixed(2) || '0.00'}</span>
+                                            <span className={`px-2 py-0.5 text-xs font-bold rounded-full border ${product.current_stock <= (product.min_stock_alert || 0) ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                {product.current_stock || 0} {product.unit || 'Units'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Desktop table (≥ lg) */}
+                        <div className="hidden lg:block overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Product Info</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Classification</th>
+                                        <th scope="col" className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Base Cost</th>
+                                        <th scope="col" className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Selling Price</th>
+                                        <th scope="col" className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Current Stock</th>
+                                        <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-slate-200">
+                                    {filteredProducts.map((product) => (
+                                        <tr key={product.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-900">{product.name}</div>
                                                 <div className="text-xs text-slate-500 font-mono mt-0.5 flex items-center gap-2">
                                                     <span className="bg-slate-100 px-1.5 py-0.5 border border-slate-200 rounded">{product.sku}</span>
                                                     {product.brand && <span>| {product.brand}</span>}
                                                 </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-slate-900">{product.categories?.name || <span className="text-slate-400 italic">Uncategorized</span>}</div>
-                                        <div className="text-xs text-slate-500 mt-0.5 pr-4 truncate max-w-[150px]" title={product.suppliers?.company_name}>
-                                            {product.suppliers?.company_name || 'No Preferred Vendor'}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <div className="text-sm font-medium text-slate-900">₹{product.base_price?.toFixed(2) || '0.00'}</div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <div className="text-sm font-medium text-green-700">₹{product.selling_price?.toFixed(2) || '0.00'}</div>
-                                        <div className="text-xs text-slate-400 mt-0.5">
-                                            {product.base_price && product.selling_price
-                                                ? `${Math.round(((product.selling_price - product.base_price) / product.base_price) * 100)}% Margin`
-                                                : ''}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${product.current_stock <= (product.min_stock_alert || 0)
-                                            ? 'bg-red-50 text-red-700 border-red-200'
-                                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                            }`}>
-                                            {product.current_stock || 0} {product.unit || 'Units'}
-                                        </span>
-                                        {product.current_stock <= (product.min_stock_alert || 0) && product.current_stock > 0 && (
-                                            <div className="text-[10px] text-red-500 mt-1 uppercase font-bold tracking-wider flex items-center justify-center">
-                                                <AlertCircle className="w-3 h-3 mr-1" /> Low Stock
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <div className="flex items-center justify-end space-x-3">
-                                            <button onClick={() => handleEdit(product)} className="text-slate-400 hover:text-blue-600 transition-colors">
-                                                <Edit className="h-4 w-4" />
-                                            </button>
-                                            <button onClick={() => handleDelete(product.id)} className="text-slate-400 hover:text-red-600 transition-colors">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="text-sm text-slate-900">{product.categories?.name || <span className="text-slate-400 italic">Uncategorized</span>}</div>
+                                                <div className="text-xs text-slate-500 mt-0.5 pr-4 truncate max-w-[150px]">{product.suppliers?.company_name || 'No Preferred Vendor'}</div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                <div className="text-sm font-medium text-slate-900">₹{product.base_price?.toFixed(2) || '0.00'}</div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                                <div className="text-sm font-medium text-green-700">₹{product.selling_price?.toFixed(2) || '0.00'}</div>
+                                                <div className="text-xs text-slate-400 mt-0.5">
+                                                    {product.base_price && product.selling_price
+                                                        ? `${Math.round(((product.selling_price - product.base_price) / product.base_price) * 100)}% Margin`
+                                                        : ''}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${product.current_stock <= (product.min_stock_alert || 0)
+                                                    ? 'bg-red-50 text-red-700 border-red-200'
+                                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                    }`}>
+                                                    {product.current_stock || 0} {product.unit || 'Units'}
+                                                </span>
+                                                {product.current_stock <= (product.min_stock_alert || 0) && product.current_stock > 0 && (
+                                                    <div className="text-[10px] text-red-500 mt-1 uppercase font-bold tracking-wider flex items-center justify-center">
+                                                        <AlertCircle className="w-3 h-3 mr-1" /> Low Stock
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <div className="flex items-center justify-end space-x-3">
+                                                    <button onClick={() => handleEdit(product)} className="text-slate-400 hover:text-blue-600 transition-colors">
+                                                        <Edit className="h-4 w-4" />
+                                                    </button>
+                                                    <button onClick={() => handleDelete(product.id)} className="text-slate-400 hover:text-red-600 transition-colors">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
             </div>
 
             {isModalOpen && (
@@ -266,6 +298,17 @@ const Products = () => {
                     suppliers={suppliers}
                 />
             )}
+
+            {isCategoryModalOpen && (
+                <CategoryModal
+                    isOpen={isCategoryModalOpen}
+                    onClose={(refresh) => {
+                        setIsCategoryModalOpen(false);
+                        if (refresh) fetchInitialData();
+                    }}
+                />
+            )}
+            <ConfirmModal config={confirm} onClose={() => setConfirm(null)} />
         </div>
     );
 };
