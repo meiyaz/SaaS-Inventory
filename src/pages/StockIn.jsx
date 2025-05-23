@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { ArrowDownToLine, Package, Filter, Save, Search } from 'lucide-react';
+import Select from '../components/ui/Select';
+import { useToast } from '../context/ToastContext';
 
 const StockIn = () => {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [search, setSearch] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
+    const toast = useToast();
 
     // Form State
     const [selectedProduct, setSelectedProduct] = useState('');
@@ -31,8 +33,7 @@ const StockIn = () => {
     };
 
     // Auto-fill the unit cost based on the master product's base buy price when a product is selected
-    const handleProductSelect = (e) => {
-        const prodId = e.target.value;
+    const handleProductSelect = (prodId) => {
         setSelectedProduct(prodId);
 
         if (prodId) {
@@ -80,19 +81,17 @@ const StockIn = () => {
 
             if (updateError) throw updateError;
 
-            setSuccessMsg(`Successfully added ${qtyInt} units to inventory!`);
+            toast(`Successfully added ${qtyInt} units to inventory!`, 'success');
             setSelectedProduct('');
             setQuantity('');
             setUnitCost('');
             setReferenceNo('');
             setNotes('');
-            fetchProducts(); // Refresh stock counts
-
-            setTimeout(() => setSuccessMsg(''), 4000);
+            fetchProducts();
 
         } catch (err) {
             console.error(err);
-            alert('Failed to process inward stock entry. Run init_schema SQL.');
+            toast('Failed to process inward stock entry. Run init_schema SQL.', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -116,37 +115,18 @@ const StockIn = () => {
                 </div>
 
                 <div className="p-6">
-                    {successMsg && (
-                        <div className="mb-6 p-4 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg flex items-center">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full mr-3"></div>
-                            {successMsg}
-                        </div>
-                    )}
-
                     <form onSubmit={handleSubmit} className="space-y-6">
 
                         {/* Find Product */}
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select Product <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search className="h-4 w-4 text-slate-400" />
-                                    </div>
-                                    <select
-                                        required
-                                        value={selectedProduct}
-                                        onChange={handleProductSelect}
-                                        className="w-full pl-10 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 bg-white"
-                                    >
-                                        <option value="">-- Search & Select an Item --</option>
-                                        {products.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                {p.sku} - {p.name} (Current: {p.current_stock || 0})
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <Select
+                                    value={selectedProduct}
+                                    onChange={handleProductSelect}
+                                    placeholder="— Search & Select an Item —"
+                                    options={products.map(p => ({ value: p.id, label: `${p.sku} - ${p.name} (Current: ${p.current_stock || 0})` }))}
+                                />
                             </div>
 
                             {selectedProductDetails && (
@@ -200,7 +180,7 @@ const StockIn = () => {
                                     value={referenceNo}
                                     onChange={(e) => setReferenceNo(e.target.value)}
                                     className="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 uppercase"
-                                    placeholder="INV-2024-..."
+                                    placeholder={`INV-${new Date().getFullYear()}-...`}
                                 />
                             </div>
                         </div>
