@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { ArrowUpRight, Search, AlertTriangle, CheckCircle2, PackageMinus } from 'lucide-react';
+import Select from '../components/ui/Select';
 
 const StockOut = () => {
     const [products, setProducts] = useState([]);
@@ -35,8 +36,8 @@ const StockOut = () => {
         setLoading(false);
     };
 
-    const handleProductSelect = (e) => {
-        setSelectedProduct(e.target.value);
+    const handleProductSelect = (val) => {
+        setSelectedProduct(val);
         setErrorMsg('');
     };
 
@@ -136,24 +137,12 @@ const StockOut = () => {
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">Select In-Stock Item <span className="text-red-500">*</span></label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search className="h-4 w-4 text-slate-400" />
-                                    </div>
-                                    <select
-                                        required
-                                        value={selectedProduct}
-                                        onChange={handleProductSelect}
-                                        className="w-full pl-10 border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-white"
-                                    >
-                                        <option value="">-- Find Available Inventory --</option>
-                                        {products.map(p => (
-                                            <option key={p.id} value={p.id}>
-                                                [{p.current_stock} available] {p.sku} - {p.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                <Select
+                                    value={selectedProduct}
+                                    onChange={handleProductSelect}
+                                    placeholder="— Find Available Inventory —"
+                                    options={products.map(p => ({ value: p.id, label: `[${p.current_stock} available] ${p.sku} - ${p.name}` }))}
+                                />
                                 <p className="text-xs text-slate-500 mt-1.5 ml-1">Items with zero stock are hidden from this dropdown to prevent negative allocation.</p>
                             </div>
 
