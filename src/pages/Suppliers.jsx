@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { Plus, Search, MapPin, Phone, Mail, FileText, Trash2, Edit } from 'lucide-react';
 import SupplierModal from '../components/suppliers/SupplierModal';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const Suppliers = () => {
     const [suppliers, setSuppliers] = useState([]);
@@ -9,6 +11,8 @@ const Suppliers = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState(null);
+    const toast = useToast();
+    const [confirm, setConfirm] = useState(null);
 
     useEffect(() => {
         fetchSuppliers();
@@ -41,14 +45,16 @@ const Suppliers = () => {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this supplier? This may affect inventory records.')) {
-            const { error } = await supabase.from('suppliers').delete().eq('id', id);
-            if (!error) {
-                setSuppliers(suppliers.filter(s => s.id !== id));
-            } else {
-                alert('Failed to delete supplier. Make sure the database table exists.');
-            }
-        }
+        setConfirm({
+            message: 'Are you sure you want to delete this supplier? This may affect inventory records.',
+            confirmLabel: 'Delete',
+            danger: true,
+            onConfirm: async () => {
+                const { error } = await supabase.from('suppliers').delete().eq('id', id);
+                if (!error) setSuppliers(suppliers.filter(s => s.id !== id));
+                else toast('Failed to delete supplier.', 'error');
+            },
+        });
     };
 
     const handleModalClose = (refresh = false) => {
@@ -184,6 +190,7 @@ const Suppliers = () => {
                     supplier={editingSupplier}
                 />
             )}
+            <ConfirmModal config={confirm} onClose={() => setConfirm(null)} />
         </div>
     );
 };
