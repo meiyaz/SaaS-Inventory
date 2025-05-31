@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { ShieldCheck, Plus, Search, X, Save, Trash2, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import Select from '../components/ui/Select';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const STATUS_STYLE = {
     ACTIVE: { label: 'Active', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
@@ -47,6 +50,8 @@ const AMC = () => {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [editId, setEditId] = useState(null);
+    const [confirm, setConfirm] = useState(null);
+    const toast = useToast();
 
     useEffect(() => { fetchAll(); }, []);
 
@@ -108,10 +113,16 @@ const AMC = () => {
     };
 
     const handleDelete = async () => {
-        if (!window.confirm('Delete this AMC contract?')) return;
-        await supabase.from('amc_contracts').delete().eq('id', editId);
-        setIsOpen(false);
-        fetchAll();
+        setConfirm({
+            message: 'Delete this AMC contract? This action cannot be undone.',
+            confirmLabel: 'Delete',
+            danger: true,
+            onConfirm: async () => {
+                await supabase.from('amc_contracts').delete().eq('id', editId);
+                setIsOpen(false);
+                fetchAll();
+            },
+        });
     };
 
     // Auto-fill client when project is selected
@@ -189,46 +200,78 @@ const AMC = () => {
                     className="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500" />
             </div>
 
-            {/* Table */}
+            {/* AMC List */}
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <table className="min-w-full divide-y divide-slate-100">
-                    <thead className="bg-slate-50">
-                        <tr>
-                            {['Contract #', 'Client', 'Project', 'Status', 'Start', 'End', 'Annual Value', 'Visits', ''].map(h => (
-                                <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {loading ? (
-                            <tr><td colSpan="9" className="py-14 text-center text-slate-400">Loading...</td></tr>
-                        ) : filtered.length === 0 ? (
-                            <tr><td colSpan="9" className="py-14 text-center">
-                                <ShieldCheck className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-                                <p className="text-slate-400 text-sm">No AMC contracts yet.</p>
-                            </td></tr>
-                        ) : filtered.map(c => {
-                            const meta = STATUS_STYLE[c.status] || STATUS_STYLE.ACTIVE;
-                            const days = daysUntilExpiry(c.end_date);
-                            const expiryClass = days !== null && days <= 30 && c.status === 'ACTIVE' ? 'text-red-600 font-bold' : days !== null && days <= 60 && c.status === 'ACTIVE' ? 'text-amber-600 font-semibold' : 'text-slate-600';
-                            return (
-                                <tr key={c.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => openEdit(c)}>
-                                    <td className="px-4 py-3 font-mono font-bold text-slate-800 text-sm">{c.contract_number}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-700">{c.clients?.company_name || c.clients?.name}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-500">{c.projects?.title || <span className="italic text-slate-300">—</span>}</td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${meta.cls}`}>{meta.label}</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtD(c.start_date)}</td>
-                                    <td className={`px-4 py-3 text-sm whitespace-nowrap ${expiryClass}`}>{fmtD(c.end_date)}</td>
-                                    <td className="px-4 py-3 text-sm font-semibold text-slate-800">{fmt(c.annual_value)}</td>
-                                    <td className="px-4 py-3 text-xs text-slate-500">{c.visit_frequency}</td>
-                                    <td className="px-4 py-3 text-slate-300 text-right">›</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                {loading ? (
+                    <div className="py-14 text-center text-slate-400">Loading...</div>
+                ) : filtered.length === 0 ? (
+                    <div className="py-14 text-center">
+                        <ShieldCheck className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                        <p className="text-slate-400 text-sm">No AMC contracts yet.</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Mobile cards (< lg) */}
+                        <div className="lg:hidden divide-y divide-slate-100">
+                            {filtered.map(c => {
+                                const meta = STATUS_STYLE[c.status] || STATUS_STYLE.ACTIVE;
+                                const days = daysUntilExpiry(c.end_date);
+                                const expiryClass = days !== null && days <= 30 && c.status === 'ACTIVE' ? 'text-red-600 font-bold' : days !== null && days <= 60 && c.status === 'ACTIVE' ? 'text-amber-600 font-semibold' : 'text-slate-500';
+                                return (
+                                    <div key={c.id} className="p-4 hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => openEdit(c)}>
+                                        <div className="flex items-start justify-between gap-3 mb-2">
+                                            <div className="min-w-0">
+                                                <p className="font-mono font-bold text-slate-800 text-sm truncate">{c.contract_number}</p>
+                                                <p className="text-sm font-medium text-slate-700 mt-0.5 truncate">{c.clients?.company_name || c.clients?.name}</p>
+                                            </div>
+                                            <span className={`shrink-0 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${meta.cls}`}>{meta.label}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="text-xs text-slate-500 truncate">{c.projects?.title || 'No project'} · {c.visit_frequency}</p>
+                                                <p className={`text-xs mt-0.5 ${expiryClass}`}>{fmtD(c.start_date)} → {fmtD(c.end_date)}</p>
+                                            </div>
+                                            <span className="shrink-0 font-bold text-slate-800 text-sm">{fmt(c.annual_value)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop table (≥ lg) */}
+                        <div className="hidden lg:block overflow-x-auto">
+                            <table className="min-w-full divide-y divide-slate-100">
+                                <thead className="bg-slate-50">
+                                    <tr>
+                                        {['Contract #', 'Client', 'Project', 'Status', 'Start', 'End', 'Annual Value', 'Visits', ''].map(h => (
+                                            <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filtered.map(c => {
+                                        const meta = STATUS_STYLE[c.status] || STATUS_STYLE.ACTIVE;
+                                        const days = daysUntilExpiry(c.end_date);
+                                        const expiryClass = days !== null && days <= 30 && c.status === 'ACTIVE' ? 'text-red-600 font-bold' : days !== null && days <= 60 && c.status === 'ACTIVE' ? 'text-amber-600 font-semibold' : 'text-slate-600';
+                                        return (
+                                            <tr key={c.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => openEdit(c)}>
+                                                <td className="px-4 py-3 font-mono font-bold text-slate-800 text-sm whitespace-nowrap">{c.contract_number}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-700">{c.clients?.company_name || c.clients?.name}</td>
+                                                <td className="px-4 py-3 text-sm text-slate-500">{c.projects?.title || <span className="italic text-slate-300">—</span>}</td>
+                                                <td className="px-4 py-3"><span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${meta.cls}`}>{meta.label}</span></td>
+                                                <td className="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">{fmtD(c.start_date)}</td>
+                                                <td className={`px-4 py-3 text-sm whitespace-nowrap ${expiryClass}`}>{fmtD(c.end_date)}</td>
+                                                <td className="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">{fmt(c.annual_value)}</td>
+                                                <td className="px-4 py-3 text-xs text-slate-500">{c.visit_frequency}</td>
+                                                <td className="px-4 py-3 text-slate-300 text-right">›</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Modal */}
@@ -243,26 +286,22 @@ const AMC = () => {
                             {error && <div className="col-span-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</div>}
 
                             {field('Contract Number', <input required value={form.contract_number} onChange={e => setForm(f => ({ ...f, contract_number: e.target.value }))} className={inputCls} />, true)}
-                            {field('Status', <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={inputCls}>
-                                {Object.entries(STATUS_STYLE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                            </select>)}
+                            {field('Status', <Select value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))} options={Object.entries(STATUS_STYLE).map(([k, v]) => ({ value: k, label: v.label }))} />)}
 
-                            {field('Client', <select required value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))} className={inputCls}>
-                                <option value="">— Select Client —</option>
-                                {clients.map(c => <option key={c.id} value={c.id}>{c.company_name || c.name}</option>)}
-                            </select>, true)}
-                            {field('Linked Project (optional)', <select value={form.project_id} onChange={e => handleProjectChange(e.target.value)} className={inputCls}>
-                                <option value="">— None —</option>
-                                {projects.map(p => <option key={p.id} value={p.id}>{p.title} ({p.project_code})</option>)}
-                            </select>)}
+                            {field('Client', <Select value={form.client_id} onChange={v => setForm(f => ({ ...f, client_id: v }))} placeholder="— Select Client —"
+                                options={clients.map(c => ({ value: c.id, label: c.company_name || c.name }))}
+                            />, true)}
+                            {field('Linked Project (optional)', <Select value={form.project_id} onChange={v => handleProjectChange(v)} placeholder="— None —"
+                                options={projects.map(p => ({ value: p.id, label: `${p.title} (${p.project_code})` }))}
+                            />)}
 
                             {field('Start Date', <input type="date" required value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className={inputCls} />, true)}
                             {field('End Date', <input type="date" required value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className={inputCls} />, true)}
 
                             {field('Annual Value (₹)', <input type="number" min="0" step="100" value={form.annual_value} onChange={e => setForm(f => ({ ...f, annual_value: e.target.value }))} className={inputCls} placeholder="0" />)}
-                            {field('Visit Frequency', <select value={form.visit_frequency} onChange={e => setForm(f => ({ ...f, visit_frequency: e.target.value }))} className={inputCls}>
-                                {['Monthly', 'Bi-Monthly', 'Quarterly', 'Half-Yearly', 'Annual', 'On-Call'].map(v => <option key={v}>{v}</option>)}
-                            </select>)}
+                            {field('Visit Frequency', <Select value={form.visit_frequency} onChange={v => setForm(f => ({ ...f, visit_frequency: v }))}
+                                options={['Monthly', 'Bi-Monthly', 'Quarterly', 'Half-Yearly', 'Annual', 'On-Call'].map(v => ({ value: v, label: v }))}
+                            />)}
 
                             <div className="col-span-2">
                                 {field('Coverage Details', <textarea rows="2" value={form.coverage_details} onChange={e => setForm(f => ({ ...f, coverage_details: e.target.value }))} placeholder="e.g. All 42 cameras, 3 NVRs, cabling — excludes physical damage and HDD replacement" className={`${inputCls} resize-none`} />)}
@@ -286,6 +325,7 @@ const AMC = () => {
                     </div>
                 </div>
             )}
+            <ConfirmModal config={confirm} onClose={() => setConfirm(null)} />
         </div>
     );
 };
