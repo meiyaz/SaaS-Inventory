@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calculator, Percent, Ruler, FileText, Send } from 'lucide-react';
+import Select from '../components/ui/Select';
 
 const GST_RATES = [
     { label: '18% GST (Standard)', value: 18 },
@@ -100,10 +101,9 @@ const Pricing = () => {
                     {/* GST */}
                     <div className="bg-white rounded-xl border border-slate-200 p-5">
                         <h3 className="font-bold text-slate-800 mb-3 flex items-center text-sm"><Percent className="w-4 h-4 mr-2 text-amber-500" /> Tax Setting</h3>
-                        <select value={gstRate} onChange={(e) => setGstRate(e.target.value)}
-                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 bg-white">
-                            {GST_RATES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                        </select>
+                        <Select value={String(gstRate)} onChange={v => setGstRate(v)}
+                            options={GST_RATES.map(r => ({ value: String(r.value), label: r.label }))}
+                        />
                     </div>
 
                     {/* Discount */}
