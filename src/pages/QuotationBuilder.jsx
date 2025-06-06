@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Send, Calculator, Plus, X, Search, Trash2 } from 'lucide-react';
+import Select from '../components/ui/Select';
 
 const GST_RATES = [18, 12, 5, 0];
-const DEFAULT_TERMS = `1. This quotation is valid for 30 days from the date of issue.
+const DEFAULT_TERMS = `1. This estimate is valid for 30 days from the date of issue.
 2. Prices are subject to change if final site dimensions differ significantly.
 3. 50% advance payment required to confirm the order.
 4. Balance due on completion of installation.
@@ -18,8 +19,8 @@ const generateQuoteNumber = () => {
     return `QT-${y}${m}-${rand}`;
 };
 
-const QuotationBuilder = () => {
-    const { projectId } = useParams();
+const QuotationBuilder = ({ isEdit }) => {
+    const { projectId, quoteId } = useParams();
     const navigate = useNavigate();
 
     const [project, setProject] = useState(null);
@@ -41,9 +42,18 @@ const QuotationBuilder = () => {
 
     // Form State
     const [quoteNumber, setQuoteNumber] = useState(generateQuoteNumber());
-    const [validUntil, setValidUntil] = useState(() => {
-        const d = new Date(); d.setDate(d.getDate() + 30);
-        return d.toISOString().split('T')[0];
+    const [status, setStatus] = useState('DRAFT');
+
+    const prefs = JSON.parse(localStorage.getItem('app_prefs') || '{}');
+    const defaultExpiryDays = parseInt(prefs.quoteExpiryDays || '30', 10);
+    const dt = new Date();
+    dt.setDate(dt.getDate() + defaultExpiryDays);
+
+    const [form, setForm] = useState({
+        projectId: '',
+        validUntil: dt.toISOString().split('T')[0],
+        notes: '',
+        terms: '1. 50% advance along with P.O.\n2. Balance against delivery.\n3. Goods once sold will not be taken back.',
     });
     const [gstRate, setGstRate] = useState(18);
     const [discountPct, setDiscountPct] = useState(0);
@@ -53,11 +63,31 @@ const QuotationBuilder = () => {
     const [terms, setTerms] = useState(DEFAULT_TERMS);
     const [notes, setNotes] = useState('');
 
-    useEffect(() => { fetchData(); }, [projectId]);
+    useEffect(() => { fetchData(); }, [projectId, quoteId, isEdit]);
 
     const fetchData = async () => {
         setLoading(true);
-        if (projectId) {
+        if (isEdit && quoteId) {
+            const { data: quote, error: qErr } = await supabase.from('quotations').select('*, projects(id, title), clients(id, name, company_name)').eq('id', quoteId).single();
+            if (quote) {
+                setQuoteNumber(quote.quote_number);
+                setStatus(quote.status || 'DRAFT');
+                setClientId(quote.client_id);
+                if (quote.project_id) setProject(quote.projects || { id: quote.project_id, title: 'Project' });
+                setLineItems(quote.line_items || []);
+                setForm(prev => ({ ...prev, projectId: quote.project_id || '', validUntil: quote.valid_until ? quote.valid_until.split('T')[0] : prev.validUntil }));
+                setGstRate(quote.gst_rate || 18);
+                setDiscountPct(quote.discount_pct || 0);
+                setCablingCost(quote.cabling_cost || 0);
+                setLaborCost(quote.labor_cost || 0);
+                setOtherCost(quote.other_cost || 0);
+                setTerms(quote.terms_and_conditions || DEFAULT_TERMS);
+                setNotes(quote.notes || '');
+                // load clients
+                const { data: cData } = await supabase.from('clients').select('id, name, company_name').order('company_name');
+                setClients(cData || []);
+            }
+        } else if (projectId) {
             const [projRes, bomRes] = await Promise.all([
                 supabase.from('projects').select('*, clients(id, name, company_name, gst_number, address, phone, email)').eq('id', projectId).single(),
                 supabase.from('project_bom').select('*, products(name, sku, selling_price, tax_rate)').eq('project_id', projectId).order('created_at'),
@@ -146,20 +176,20 @@ const QuotationBuilder = () => {
 
     const handleSave = async (status = 'DRAFT') => {
         if (!clientId && !projectId) {
-            setError("You must select a client for this quotation.");
+            setError("You must select a client for this estimate.");
             return;
         }
 
         setSaving(true);
         setError('');
         try {
-            const { data, error: err } = await supabase.from('quotations').insert([{
+            const payload = {
                 quote_number: quoteNumber,
-                project_id: projectId || null,
+                project_id: (isEdit && project) ? project.id : (projectId || null),
                 client_id: clientId || project?.client_id || null,
                 line_items: lineItems,
                 status,
-                valid_until: validUntil || null,
+                valid_until: form.validUntil || null,
                 bom_sell_value: bomSellValue,
                 cabling_cost: parseFloat(cablingCost || 0),
                 labor_cost: parseFloat(laborCost || 0),
@@ -172,10 +202,20 @@ const QuotationBuilder = () => {
                 grand_total: grandTotal,
                 terms_and_conditions: terms,
                 notes,
-            }]).select().single();
+            };
 
-            if (err) throw err;
-            navigate(`/billing/quotation/${data.id}/print`);
+            let savedData;
+            if (isEdit && quoteId) {
+                const { data, error: err } = await supabase.from('quotations').update(payload).eq('id', quoteId).select().single();
+                if (err) throw err;
+                savedData = data;
+            } else {
+                const { data, error: err } = await supabase.from('quotations').insert([payload]).select().single();
+                if (err) throw err;
+                savedData = data;
+            }
+
+            navigate(`/billing/quotation/${savedData.id}/print`);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -198,17 +238,26 @@ const QuotationBuilder = () => {
                 <button onClick={() => navigate('/billing')}
                     className="inline-flex items-center text-sm text-slate-500 hover:text-slate-800 group">
                     <ArrowLeft className="w-4 h-4 mr-1.5 group-hover:-translate-x-1 transition-transform" />
-                    Back to Quotations
+                    Back to Estimates
                 </button>
                 <div className="flex gap-2">
-                    <button onClick={() => handleSave('DRAFT')} disabled={saving}
-                        className="inline-flex items-center px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-60">
-                        <Save className="w-4 h-4 mr-1.5" /> Save Draft
-                    </button>
-                    <button onClick={() => handleSave('SENT')} disabled={saving}
-                        className="inline-flex items-center px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 disabled:opacity-60">
-                        <Send className="w-4 h-4 mr-1.5" /> Generate & Print
-                    </button>
+                    {status === 'DRAFT' ? (
+                        <>
+                            <button onClick={() => handleSave('DRAFT')} disabled={saving}
+                                className="inline-flex items-center px-4 py-2 border border-slate-300 bg-white text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-60">
+                                <Save className="w-4 h-4 mr-1.5" /> Save Draft
+                            </button>
+                            <button onClick={() => handleSave('SENT')} disabled={saving}
+                                className="inline-flex items-center px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 disabled:opacity-60">
+                                <Send className="w-4 h-4 mr-1.5" /> Generate & Print
+                            </button>
+                        </>
+                    ) : (
+                        <button onClick={() => handleSave(status)} disabled={saving}
+                            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 shadow-sm">
+                            <Save className="w-4 h-4 mr-1.5 text-indigo-100" /> Update Estimate
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -218,7 +267,7 @@ const QuotationBuilder = () => {
                 {/* Left: Quote Settings */}
                 <div className="flex flex-col gap-4">
                     <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-                        <h3 className="font-bold text-slate-800 text-sm">Quotation Options</h3>
+                        <h3 className="font-bold text-slate-800 text-sm">Estimate Options</h3>
 
                         {!projectId && (
                             <div className="pb-2 border-b border-slate-100 mb-2">
@@ -228,30 +277,28 @@ const QuotationBuilder = () => {
                                         <Plus className="w-3 h-3 mr-0.5" /> New
                                     </button>
                                 </label>
-                                <select value={clientId} onChange={e => setClientId(e.target.value)}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 bg-slate-50">
-                                    <option value="">-- Select Client --</option>
-                                    {clients.map(c => <option key={c.id} value={c.id}>{c.company_name || c.name}</option>)}
-                                </select>
+                                <Select value={clientId} onChange={v => setClientId(v)}
+                                    placeholder="-- Select Client --"
+                                    options={clients.map(c => ({ value: c.id, label: c.company_name || c.name }))}
+                                />
                             </div>
                         )}
 
                         <div>
-                            <label className="text-xs font-semibold text-slate-600 mb-1 block">Quote Number</label>
+                            <label className="text-xs font-semibold text-slate-600 mb-1 block">Estimate Number</label>
                             <input value={quoteNumber} onChange={e => setQuoteNumber(e.target.value)}
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 font-mono uppercase" />
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-slate-600 mb-1 block">Valid Until</label>
-                            <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)}
+                            <input type="date" value={form.validUntil} onChange={e => setForm(prev => ({ ...prev, validUntil: e.target.value }))}
                                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500" />
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-slate-600 mb-1 block">GST Rate</label>
-                            <select value={gstRate} onChange={e => setGstRate(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-500 bg-white">
-                                {GST_RATES.map(r => <option key={r} value={r}>{r}% GST</option>)}
-                            </select>
+                            <Select value={String(gstRate)} onChange={v => setGstRate(v)}
+                                options={GST_RATES.map(r => ({ value: String(r), label: `${r}% GST` }))}
+                            />
                         </div>
                         <div>
                             <label className="text-xs font-semibold text-slate-600 mb-1 block">Discount %</label>
