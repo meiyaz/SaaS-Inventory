@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Printer } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ArrowLeft, Printer, ArrowRightLeft } from 'lucide-react';
+import { useToast } from '../context/ToastContext';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
@@ -9,29 +12,32 @@ const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit'
 const QuotationPrint = () => {
     const { quoteId } = useParams();
     const navigate = useNavigate();
+    const { orgId, user } = useAuth();
     const printRef = useRef();
 
     const [quote, setQuote] = useState(null);
     const [bomItems, setBomItems] = useState([]);
+    const [org, setOrg] = useState({});
     const [loading, setLoading] = useState(true);
+    const toast = useToast();
+    const [confirm, setConfirm] = useState(null);
 
-    useEffect(() => { fetchData(); }, [quoteId]);
+    useEffect(() => { fetchData(); }, [quoteId, orgId]);
 
     const fetchData = async () => {
         setLoading(true);
-        const { data: q } = await supabase
-            .from('quotations')
-            .select('*, clients(name, company_name, gst_number, address, phone, email), projects(title, project_code, site_address, clients(name, company_name, gst_number, address, phone, email))')
-            .eq('id', quoteId)
-            .single();
+        const [{ data: q }, { data: orgData }] = await Promise.all([
+            supabase.from('quotations')
+                .select('*, clients(name, company_name, gst_number, address, phone, email), projects(title, project_code, site_address, clients(name, company_name, gst_number, address, phone, email))')
+                .eq('id', quoteId).single(),
+            orgId ? supabase.from('organizations').select('name, phone, address, gst_number, billing_email').eq('id', orgId).single() : { data: null },
+        ]);
 
         if (q) {
             setQuote(q);
             if (q.line_items && q.line_items.length > 0) {
-                // Use embedded line items natively
                 setBomItems(q.line_items);
             } else if (q.project_id) {
-                // Fallback for legacy
                 const { data: bom } = await supabase
                     .from('project_bom')
                     .select('*, products(name, sku)')
@@ -45,22 +51,50 @@ const QuotationPrint = () => {
                 })));
             }
         }
+        if (orgData) setOrg(orgData);
         setLoading(false);
     };
 
     const handlePrint = () => window.print();
 
-    if (loading) return <div className="text-center py-20 text-slate-500">Loading quotation...</div>;
-    if (!quote) return <div className="text-center py-20 text-red-500">Quotation not found.</div>;
+    if (loading) return <div className="text-center py-20 text-slate-500">Loading estimate...</div>;
+    if (!quote) return <div className="text-center py-20 text-red-500">Estimate not found.</div>;
+
+    const handleConvertToTask = async () => {
+        setConfirm({
+            message: `Convert estimate ${quote.quote_number} into a billable task?`,
+            confirmLabel: 'Convert',
+            onConfirm: async () => {
+                try {
+                    const payload = {
+                        organization_id: orgId,
+                        title: `Execution: ${quote.quote_number}`,
+                        description: `Auto-generated task to execute the accepted estimate.`,
+                        project_id: quote.project_id || null,
+                        priority: 'HIGH',
+                        status: 'PENDING',
+                        billable: true,
+                        billing_amount: quote.grand_total,
+                        created_by: user?.id,
+                    };
+                    const { error } = await supabase.from('tasks').insert([payload]);
+                    if (error) throw error;
+                    toast('Task created. Head over to Tasks to view it.', 'success');
+                } catch (err) {
+                    console.error(err);
+                    toast('Failed to convert to task: ' + err.message, 'error');
+                }
+            },
+        });
+    };
 
     const client = quote.clients || quote.projects?.clients;
     const project = quote.projects;
 
-    const settings = JSON.parse(localStorage.getItem('cctv_settings')) || {};
-    const cName = settings.companyName || 'Your Company Name';
-    const cAddress = settings.companyAddress || '123, Business Street, City';
-    const cGst = settings.companyGst || 'YOUR_GST_NUMBER';
-    const cPhone = settings.companyPhone || '+91 00000 00000';
+    const cName = org.name || 'Your Company Name';
+    const cAddress = org.address || '123, Business Street, City';
+    const cGst = org.gst_number || 'YOUR_GST_NUMBER';
+    const cPhone = org.phone || '+91 00000 00000';
 
     return (
         <div>
@@ -69,12 +103,20 @@ const QuotationPrint = () => {
                 <button onClick={() => navigate('/billing')}
                     className="inline-flex items-center text-sm text-slate-500 hover:text-slate-800 group">
                     <ArrowLeft className="w-4 h-4 mr-1.5 group-hover:-translate-x-1 transition-transform" />
-                    Back to Quotations
+                    Back to Estimates
                 </button>
-                <button onClick={handlePrint}
-                    className="ml-auto inline-flex items-center px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600">
-                    <Printer className="w-4 h-4 mr-2" /> Print / Save as PDF
-                </button>
+                <div className="ml-auto flex items-center gap-3">
+                    {quote.status === 'ACCEPTED' && (
+                        <button onClick={handleConvertToTask}
+                            className="inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-semibold hover:bg-indigo-100 transition-colors">
+                            <ArrowRightLeft className="w-4 h-4 mr-2" /> Convert to Task
+                        </button>
+                    )}
+                    <button onClick={handlePrint}
+                        className="inline-flex items-center px-4 py-2 bg-amber-500 text-white rounded-lg text-sm font-semibold hover:bg-amber-600 transition-colors">
+                        <Printer className="w-4 h-4 mr-2" /> Print / Save as PDF
+                    </button>
+                </div>
             </div>
 
             {/* Printable Area */}
@@ -82,7 +124,7 @@ const QuotationPrint = () => {
                 {/* Header */}
                 <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-6">
                     <div>
-                        <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-1">QUOTATION</h1>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-1">ESTIMATE</h1>
                         <p className="font-mono font-bold text-amber-600 text-lg">{quote.quote_number}</p>
                     </div>
                     <div className="text-right text-sm text-slate-600 space-y-0.5">
@@ -201,6 +243,7 @@ const QuotationPrint = () => {
                     </div>
                 </div>
             </div>
+            <ConfirmModal config={confirm} onClose={() => setConfirm(null)} />
         </div>
     );
 };
