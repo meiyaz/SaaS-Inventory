@@ -1,14 +1,12 @@
--- 1. Drop Demo Authentication Users
 DO $$
 BEGIN
   DELETE FROM auth.users WHERE email IN (
-    'admin@company.com',
-    'manager@company.com',
-    'technician@company.com'
+    'admin@cctv.com', 'manager@cctv.com', 'technician@cctv.com',
+    'admin@motors.com', 'manager@motors.com', 'technician@motors.com'
   );
 END $$;
 
--- 2. Drop the tables (Cascade drops FKs/policies)
+DROP TABLE IF EXISTS public.users CASCADE;
 DROP TABLE IF EXISTS public.tasks CASCADE;
 DROP TABLE IF EXISTS public.payment_receipts CASCADE;
 DROP TABLE IF EXISTS public.amc_contracts CASCADE;
@@ -24,6 +22,6 @@ DROP TABLE IF EXISTS public.organization_members CASCADE;
 DROP TABLE IF EXISTS public.organizations CASCADE;
 DROP TABLE IF EXISTS public.user_roles CASCADE;
 
--- 3. Drop Triggers/Functions
 DROP FUNCTION IF EXISTS public.inject_organization_id() CASCADE;
 DROP FUNCTION IF EXISTS public.get_current_org_id() CASCADE;
+DROP FUNCTION IF EXISTS public.add_team_member(text, text, text, uuid) CASCADE;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings2, Building2, Save, Key, Bell, Palette, CreditCard, CheckCircle2, Shield } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useAuth } from '../context/AuthContext';
+import Select from '../components/ui/Select';
 
 const TABS = [
     { id: 'company', label: 'Company Profile', icon: Building2 },
@@ -30,23 +31,40 @@ const Settings = () => {
 
     useEffect(() => {
         if (orgId) {
-            supabase.from('organizations').select('role_settings').eq('id', orgId).single().then(({ data }) => {
-                if (data?.role_settings) setRoleSettings(data.role_settings);
-            });
+            supabase.from('organizations')
+                .select('role_settings, name, phone, address, location_url, gst_number, website, billing_email')
+                .eq('id', orgId).single()
+                .then(({ data }) => {
+                    if (data?.role_settings) setRoleSettings(data.role_settings);
+                    if (data) setCompany({
+                        name: data.name || '',
+                        phone: data.phone || '',
+                        address: data.address || '',
+                        locationUrl: data.location_url || '',
+                        gst: data.gst_number || '',
+                        email: data.billing_email || '',
+                        website: data.website || '',
+                    });
+                });
         }
     }, [orgId]);
 
-    // Company profile stored in localStorage for demo
-    const [company, setCompany] = useState(() => {
-        try { return JSON.parse(localStorage.getItem('company_profile') || '{}'); } catch { return {}; }
-    });
+    const [company, setCompany] = useState({});
 
     const [prefs, setPrefs] = useState(() => {
         try { return JSON.parse(localStorage.getItem('app_prefs') || '{}'); } catch { return {}; }
     });
 
-    const handleSaveCompany = () => {
-        localStorage.setItem('company_profile', JSON.stringify(company));
+    const handleSaveCompany = async () => {
+        await supabase.from('organizations').update({
+            name: company.name,
+            phone: company.phone,
+            address: company.address,
+            location_url: company.locationUrl,
+            gst_number: company.gst,
+            billing_email: company.email,
+            website: company.website,
+        }).eq('id', orgId);
         setSaved(true);
         setTimeout(() => setSaved(false), 2500);
     };
@@ -190,12 +208,12 @@ const Settings = () => {
                                             <div key={mod.key}
                                                 onClick={() => togglePermission(roleType, mod.key)}
                                                 className={`p-3 rounded-xl border flex items-center cursor-pointer transition-all ${(roleSettings[roleType] || []).includes(mod.key)
-                                                        ? 'bg-blue-50/50 border-blue-200 opacity-100 shadow-sm'
-                                                        : 'bg-white border-slate-200 opacity-60 hover:opacity-100'
+                                                    ? 'bg-blue-50/50 border-blue-200 opacity-100 shadow-sm'
+                                                    : 'bg-white border-slate-200 opacity-60 hover:opacity-100'
                                                     }`}>
                                                 <div className={`w-4 h-4 rounded shadow-sm border mr-2.5 flex items-center justify-center transition-colors ${(roleSettings[roleType] || []).includes(mod.key)
-                                                        ? 'bg-blue-600 border-blue-600'
-                                                        : 'bg-white border-slate-300'
+                                                    ? 'bg-blue-600 border-blue-600'
+                                                    : 'bg-white border-slate-300'
                                                     }`}>
                                                     {(roleSettings[roleType] || []).includes(mod.key) && <CheckCircle2 className="w-3 h-3 text-white" />}
                                                 </div>
@@ -226,10 +244,13 @@ const Settings = () => {
                                 <div className="col-span-2">
                                     {field('Address', <textarea rows="2" value={company.address || ''} onChange={e => setCompany(c => ({ ...c, address: e.target.value }))} className={`${inputCls} resize-none`} placeholder="Full address including city, state, PIN" />)}
                                 </div>
+                                {field('Google Maps URL', <input value={company.locationUrl || ''} onChange={e => setCompany(c => ({ ...c, locationUrl: e.target.value }))} className={inputCls} placeholder="https://maps.google.com/..." />)}
                                 {field('Website', <input value={company.website || ''} onChange={e => setCompany(c => ({ ...c, website: e.target.value }))} className={inputCls} placeholder="https://www.company.com" />)}
-                                {field('Default GST Rate (%)', <select value={company.defaultGst || '18'} onChange={e => setCompany(c => ({ ...c, defaultGst: e.target.value }))} className={inputCls}>
-                                    {['0', '5', '12', '18'].map(v => <option key={v} value={v}>{v}%</option>)}
-                                </select>)}
+                                {field('Default GST Rate (%)', <Select
+                                    value={company.defaultGst || '18'}
+                                    onChange={v => setCompany(c => ({ ...c, defaultGst: v }))}
+                                    options={['0', '5', '12', '18'].map(v => ({ value: v, label: `${v}%` }))}
+                                />)}
                             </div>
                             <button onClick={handleSaveCompany} className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                                 <Save className="w-4 h-4 mr-1.5" /> Save Company Profile
@@ -242,20 +263,31 @@ const Settings = () => {
                         <div className="space-y-5">
                             <h3 className="font-bold text-slate-800 text-base">Application Preferences</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {field('Currency Symbol', <select value={prefs.currency || '₹'} onChange={e => setPrefs(p => ({ ...p, currency: e.target.value }))} className={inputCls}>
-                                    <option value="₹">₹ — Indian Rupee (INR)</option>
-                                    <option value="$">$ — US Dollar (USD)</option>
-                                    <option value="£">£ — British Pound (GBP)</option>
-                                </select>)}
-                                {field('Date Format', <select value={prefs.dateFormat || 'DD MMM YYYY'} onChange={e => setPrefs(p => ({ ...p, dateFormat: e.target.value }))} className={inputCls}>
-                                    <option value="DD MMM YYYY">DD MMM YYYY (24 Feb 2026)</option>
-                                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                                </select>)}
+                                {field('Currency Symbol', <Select
+                                    value={prefs.currency || '₹'}
+                                    onChange={v => setPrefs(p => ({ ...p, currency: v }))}
+                                    options={[
+                                        { value: '₹', label: '₹ — Indian Rupee (INR)' },
+                                        { value: '$', label: '$ — US Dollar (USD)' },
+                                        { value: '£', label: '£ — British Pound (GBP)' },
+                                    ]}
+                                />)}
+                                {field('Date Format', <Select
+                                    value={prefs.dateFormat || 'DD MMM YYYY'}
+                                    onChange={v => setPrefs(p => ({ ...p, dateFormat: v }))}
+                                    options={[
+                                        { value: 'DD MMM YYYY', label: 'DD MMM YYYY (24 Feb 2026)' },
+                                        { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+                                        { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+                                    ]}
+                                />)}
                                 {field('Low Stock Alert Threshold (global default)', <input type="number" min="1" value={prefs.lowStockDefault || '5'} onChange={e => setPrefs(p => ({ ...p, lowStockDefault: e.target.value }))} className={inputCls} />)}
-                                {field('AMC Renewal Alert (days before)', <select value={prefs.amcAlertDays || '60'} onChange={e => setPrefs(p => ({ ...p, amcAlertDays: e.target.value }))} className={inputCls}>
-                                    {['30', '45', '60', '90'].map(d => <option key={d} value={d}>{d} days</option>)}
-                                </select>)}
+                                {field('AMC Renewal Alert (days before)', <Select
+                                    value={prefs.amcAlertDays || '60'}
+                                    onChange={v => setPrefs(p => ({ ...p, amcAlertDays: v }))}
+                                    options={['30', '45', '60', '90'].map(d => ({ value: d, label: `${d} days` }))}
+                                />)}
+                                {field('Default Quote Expiry (Days)', <input type="number" min="1" max="365" value={prefs.quoteExpiryDays || '30'} onChange={e => setPrefs(p => ({ ...p, quoteExpiryDays: e.target.value }))} className={inputCls} />)}
                             </div>
                             <button onClick={handleSavePrefs} className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
                                 <Save className="w-4 h-4 mr-1.5" /> Save Preferences
@@ -282,10 +314,11 @@ const Settings = () => {
                                         <p className="text-xs text-slate-500">{item.sub}</p>
                                     </div>
                                     <button
-                                        onClick={() => setPrefs(p => ({ ...p, [item.key]: !p[item.key] }))}
-                                        className={`w-11 h-6 rounded-full transition-colors relative ${prefs[item.key] ? 'bg-blue-500' : 'bg-slate-200'}`}
+                                        type="button"
+                                        onClick={() => setPrefs(p => ({ ...(p || {}), [item.key]: !(p || {})[item.key] }))}
+                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${(prefs || {})[item.key] ? 'bg-blue-600' : 'bg-slate-200'}`}
                                     >
-                                        <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs[item.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${(prefs || {})[item.key] ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>
                                 </div>
                             ))}
@@ -308,13 +341,17 @@ const Settings = () => {
                                 { label: 'Session Timeout', sub: 'Enforce logout after inactivity', key: 'sessionTimeout', default: '60' },
                             ].map(s => (
                                 <div key={s.key}>
-                                    {field(s.label, <select value={prefs[s.key] || s.default} onChange={e => setPrefs(p => ({ ...p, [s.key]: e.target.value }))} className={inputCls}>
-                                        <option value="30">30 minutes</option>
-                                        <option value="60">1 hour</option>
-                                        <option value="120">2 hours</option>
-                                        <option value="480">8 hours</option>
-                                        <option value="never">Never</option>
-                                    </select>)}
+                                    {field(s.label, <Select
+                                        value={prefs[s.key] || s.default}
+                                        onChange={v => setPrefs(p => ({ ...p, [s.key]: v }))}
+                                        options={[
+                                            { value: '30', label: '30 minutes' },
+                                            { value: '60', label: '1 hour' },
+                                            { value: '120', label: '2 hours' },
+                                            { value: '480', label: '8 hours' },
+                                            { value: 'never', label: 'Never' },
+                                        ]}
+                                    />)}
                                 </div>
                             ))}
                             <button onClick={handleSavePrefs} className="inline-flex items-center px-5 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">

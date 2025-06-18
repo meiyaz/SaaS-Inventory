@@ -42,7 +42,7 @@ const Reports = () => {
 
     const fetchAll = async () => {
         setLoading(true);
-        const [pRes, qRes, aRes, sRes] = await Promise.all([
+        const [pRes, qRes, aRes, sRes, tRes] = await Promise.all([
             supabase.from('projects').select('id, title, project_code, status, contract_value, created_at, clients(company_name, name)').order('created_at', { ascending: false }),
             supabase.from('quotations').select('id, quote_number, status, grand_total, created_at, projects(title, clients(company_name, name))').order('created_at', { ascending: false }),
             supabase.from('amc_contracts').select('id, contract_number, status, annual_value, start_date, end_date, clients(company_name, name)').order('end_date'),
