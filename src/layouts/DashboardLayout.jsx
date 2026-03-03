@@ -38,10 +38,10 @@ const Sidebar = () => {
         { name: 'Clients', icon: Users, path: '/clients', roles: ['ADMIN', 'MANAGER'] },
         { name: 'Suppliers', icon: Truck, path: '/suppliers', roles: ['ADMIN', 'MANAGER'] },
         { name: 'Categories', icon: Tags, path: '/categories', roles: ['ADMIN', 'MANAGER'] },
-        { name: 'Inventory Master', icon: Package, path: '/inventory', roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
-        { name: 'Stock Inward', icon: ArrowDownToLine, path: '/inventory/in', isSub: true, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
-        { name: 'Stock Outward', icon: ArrowUpRight, path: '/inventory/out', isSub: true, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
-        { name: 'Stock Logs', icon: History, path: '/inventory/logs', isSub: true, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
+        { name: 'Products', icon: Package, path: '/products', roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
+        { name: 'Stock Inward', icon: ArrowDownToLine, path: '/products/in', isSub: true, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
+        { name: 'Stock Outward', icon: ArrowUpRight, path: '/products/out', isSub: true, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
+        { name: 'Stock Logs', icon: History, path: '/products/logs', isSub: true, roles: ['ADMIN', 'MANAGER', 'TECHNICIAN'] },
         { name: 'Settings', icon: Settings, path: '/settings', roles: ['ADMIN'] },
     ];
 

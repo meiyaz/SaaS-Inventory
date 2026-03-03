@@ -112,7 +112,7 @@ const ProductImport = () => {
     return (
         <div className="max-w-4xl mx-auto flex flex-col gap-6">
             <div>
-                <button onClick={() => navigate('/inventory')} className="inline-flex items-center text-sm text-slate-500 hover:text-slate-800 mb-4 group">
+                <button onClick={() => navigate('/products')} className="inline-flex items-center text-sm text-slate-500 hover:text-slate-800 mb-4 group">
                     <ArrowLeft className="w-4 h-4 mr-1.5 group-hover:-translate-x-1 transition-transform" />
                     Back to Inventory
                 </button>
@@ -246,7 +246,7 @@ const ProductImport = () => {
                                 className="px-4 py-2 text-sm font-semibold border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100">
                                 Import Another File
                             </button>
-                            <button onClick={() => navigate('/inventory')}
+                            <button onClick={() => navigate('/products')}
                                 className="px-4 py-2 text-sm font-semibold bg-violet-600 text-white rounded-lg hover:bg-violet-700">
                                 View Inventory →
                             </button>

@@ -92,12 +92,12 @@ const Dashboard = () => {
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0">
-                        <button onClick={() => navigate('/inventory/in')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] overflow-hidden">
+                        <button onClick={() => navigate('/products/in')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] overflow-hidden">
                             <ArrowDownToLine className="w-6 h-6 text-blue-400 mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-xs font-medium text-white">Stock In</span>
                             <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
                         </button>
-                        <button onClick={() => navigate('/inventory/out')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] overflow-hidden">
+                        <button onClick={() => navigate('/products/out')} className="group relative flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] overflow-hidden">
                             <ArrowUpRight className="w-6 h-6 text-purple-400 mb-2 group-hover:scale-110 transition-transform" />
                             <span className="text-xs font-medium text-white">Dispatch</span>
                             <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-400 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left"></div>
@@ -123,7 +123,7 @@ const Dashboard = () => {
                                 </div>
                                 Priority Stock Replenishment
                             </h3>
-                            <button onClick={() => navigate('/inventory')} className="text-sm text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => navigate('/products')} className="text-sm text-red-600 hover:text-red-700 font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 View Inventory <ArrowUpRight className="w-3.5 h-3.5" />
                             </button>
                         </div>
@@ -263,7 +263,7 @@ const Dashboard = () => {
                     </div>
                     {stats.recentLogs.length > 0 && (
                         <div className="p-3 bg-white border-t border-slate-100 text-center">
-                            <button onClick={() => navigate('/inventory/logs')} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider">
+                            <button onClick={() => navigate('/products/logs')} className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors uppercase tracking-wider">
                                 View Full Activity Log →
                             </button>
                         </div>

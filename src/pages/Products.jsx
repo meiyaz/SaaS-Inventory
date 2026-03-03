@@ -137,7 +137,7 @@ const Products = () => {
                         New Product
                     </button>
                     <button
-                        onClick={() => navigate('/inventory/import')}
+                        onClick={() => navigate('/products/import')}
                         className="inline-flex items-center px-3 py-2 bg-violet-50 border border-violet-200 rounded-lg text-sm font-medium text-violet-700 hover:bg-violet-100"
                         title="Bulk import products via CSV"
                     >
